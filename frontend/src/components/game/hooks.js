@@ -40,14 +40,14 @@ export const useRevealAnimation = () => {
     timers.current = [];
     setFinal(false);
     let t = 0;
-    let delay = 55;
+    let delay = 28;
     let cur = Math.random() < 0.5 ? "ODD" : "EVEN";
     while (t + delay < 2500) {
       t += delay;
       const v = cur;
       timers.current.push(setTimeout(() => setLabel(v), t));
       cur = cur === "ODD" ? "EVEN" : "ODD";
-      delay *= 1.16;
+      delay *= t < 1700 ? 1.02 : 1.22;
     }
     timers.current.push(setTimeout(() => { setLabel(result); setFinal(true); onDone && onDone(); }, Math.max(t + 260, 2400)));
   };
