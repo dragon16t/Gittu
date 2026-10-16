@@ -75,7 +75,8 @@ export const AuthCard = ({ title, subtitle, children, footer, testid }) => (
   <div className="relative z-10 min-h-screen flex items-center justify-center px-5 py-10" data-testid={testid}>
     <div className="w-full max-w-[420px] rise">
       <div className="text-center mb-8">
-        <div className="text-[44px] leading-none font-black silver-text tracking-tight">ODD · EVEN</div>
+        <div className="text-[44px] leading-none font-black silver-text tracking-[0.12em]">BLACKBA</div>
+        <div className="text-[11px] tracking-[0.4em] text-neutral-500 mt-2">ODD · EVEN</div>
         <div className="mt-3 text-neutral-400 text-sm">{subtitle}</div>
       </div>
       <div className="panel p-6">

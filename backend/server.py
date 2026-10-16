@@ -17,6 +17,7 @@ import routes_user  # noqa: E402
 import routes_verifier  # noqa: E402
 import routes_admin  # noqa: E402
 import promotions  # noqa: E402
+import tickets  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 ORIGINS = [o.strip() for o in os.environ["CORS_ORIGINS"].split(",") if o.strip()]
@@ -35,6 +36,7 @@ api.include_router(routes_user.router)
 api.include_router(routes_verifier.router)
 api.include_router(routes_admin.router)
 api.include_router(promotions.router)
+api.include_router(tickets.router)
 app.include_router(api)
 
 
@@ -80,6 +82,8 @@ async def create_indexes():
     await db.practice_previews.create_index("id", unique=True)
     await db.audit_logs.create_index("created_at")
     await db.coupons.create_index("key", unique=True)
+    await db.tickets.create_index("id", unique=True)
+    await db.tickets.create_index("number", unique=True)
     await db.coupons.create_index([("user_id", 1), ("created_at", -1)])
     await db.users.create_index("referral_code", unique=True, partialFilterExpression={"referral_code": {"$type": "string"}})
     async for u in db.users.find({"role": "user", "referral_code": {"$exists": False}}, {"_id": 0, "id": 1}):

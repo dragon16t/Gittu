@@ -43,7 +43,7 @@ async def consume_wagering(user_id: str, stake: int):
 
 async def issue_coupon(user_id: str, kind: str, amount: int, mult: int, title: str, key: str, ref: str = "", hours=24):
     cfg = await get_config()
-    if not cfg["promotions_enabled"]:
+    if not cfg["promotions_enabled"] or cfg.get("promo_reserve", 0) < amount:
         return None
     c = {"id": uid(), "user_id": user_id, "kind": kind, "amount": amount, "wager_multiplier": mult, "title": title,
          "status": "available", "key": key, "ref": ref, "created_at": iso(),
@@ -112,7 +112,7 @@ async def coupons(user=Depends(current_user)):
 @router.post("/coupons/{cid}/claim")
 async def claim(cid: str, user=Depends(current_user)):
     c = await db.coupons.find_one({"id": cid, "user_id": user["id"]}, P)
-    if not c or not await redeem(c, "claimed"):
+    if not c or not await redeem(c, "auto_credited" if c["expires_at"] < iso() else "claimed"):
         raise HTTPException(400, "Coupon already claimed or unavailable")
     w = await db.wallets.find_one({"user_id": user["id"]}, P)
     return {"ok": True, "balance": w["balance"], "wager_remaining": w.get("wager_remaining", 0)}

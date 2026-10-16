@@ -9,7 +9,7 @@ export default function Refer() {
   useEffect(() => { api.get("/referrals").then(({ data }) => setD(data)); }, []);
   const link = d ? `${window.location.origin}/register?ref=${d.code}` : "";
   const share = async () => {
-    const text = `Join ODD·EVEN with my code ${d.code}: ${link}`;
+    const text = `Join BLACKBA with my code ${d.code}: ${link}`;
     if (navigator.share) navigator.share({ text }).catch(() => {});
     else { navigator.clipboard?.writeText(text); toast.success("Invite copied"); }
   };

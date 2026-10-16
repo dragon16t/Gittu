@@ -82,22 +82,27 @@ async def my_deposit(v, dep_id):
     return d
 
 
+async def do_verify_deposit(v: dict, d: dict, user: dict, request: Request, allowed=("pending",), note=""):
+    res = await db.deposits.update_one({"id": d["id"], "status": {"$in": list(allowed)}},
+                                       {"$set": {"status": "verified", "verified_at": iso(), "verified_by": user["id"],
+                                                 "verify_note": note}, "$unset": {"reject_reason": ""}})
+    if not res.modified_count:
+        raise HTTPException(400, "Deposit is not in a verifiable state")
+    if await ledger_credit(d["user_id"], d["amount"], "deposit", f"deposit:{d['id']}", {"deposit_id": d["id"], "utr": d.get("utr")}):
+        await db.payment_accounts.update_one({"id": d["account_id"]}, {"$inc": {"available_funds": d["amount"]}})
+        await accrue_commission(v["id"], "deposits", d["id"], d["amount"])
+        await on_deposit_verified(d)
+        await credit_deposit_notice(d)
+    await audit(user, "deposit.verified", d["id"], {"amount": d["amount"], "utr": d.get("utr"), "note": note}, request)
+
+
 @router.post("/deposits/{dep_id}/verify")
 async def verify_deposit(dep_id: str, request: Request, user=Depends(current_verifier)):
     v = await vprofile(user)
     if not v.get("perm_deposit"):
         raise HTTPException(403, "No deposit permission")
     d = await my_deposit(v, dep_id)
-    res = await db.deposits.update_one({"id": dep_id, "status": "pending"},
-                                       {"$set": {"status": "verified", "verified_at": iso(), "verified_by": user["id"]}})
-    if not res.modified_count:
-        raise HTTPException(400, "Deposit is not pending")
-    if await ledger_credit(d["user_id"], d["amount"], "deposit", f"deposit:{dep_id}", {"deposit_id": dep_id, "utr": d["utr"]}):
-        await db.payment_accounts.update_one({"id": d["account_id"]}, {"$inc": {"available_funds": d["amount"]}})
-        await accrue_commission(v["id"], "deposits", dep_id, d["amount"])
-        await on_deposit_verified(d)
-        await credit_deposit_notice(d)
-    await audit(user, "deposit.verified", dep_id, {"amount": d["amount"], "utr": d["utr"]}, request)
+    await do_verify_deposit(v, d, user, request)
     return {"ok": True}
 
 
@@ -154,18 +159,23 @@ async def processing_wd(wid: str, body: RefIn, request: Request, user=Depends(cu
     return {"ok": True}
 
 
+async def do_complete_withdrawal(v: dict, w: dict, user: dict, request: Request, frm="processing", extra=None):
+    await transition(w["id"], frm, "completed", {"verified_by": user["id"], **(extra or {})})
+    ref = (extra or {}).get("reference") or w.get("reference")
+    if await reserved_settle(w["user_id"], w["amount"], "withdraw_complete", f"wcomplete:{w['id']}",
+                             {"withdrawal_id": w["id"], "reference": ref}):
+        await db.payment_accounts.update_one({"id": w["account_id"]},
+                                             {"$inc": {"available_funds": -w["amount"], "committed": -w["amount"]}})
+        await accrue_commission(v["id"], "withdrawals", w["id"], w["amount"])
+        await notify(w["user_id"], "Withdrawal completed", f"₹{w['amount'] / 100:.2f} has been transferred. Ref {ref}")
+    await audit(user, "withdrawal.completed", w["id"], {"amount": w["amount"], "reference": ref}, request)
+
+
 @router.post("/withdrawals/{wid}/complete")
 async def complete_wd(wid: str, request: Request, user=Depends(current_verifier)):
     v = await vprofile(user)
     w = await my_wd(v, wid)
-    await transition(wid, "processing", "completed", {"verified_by": user["id"]})
-    if await reserved_settle(w["user_id"], w["amount"], "withdraw_complete", f"wcomplete:{wid}",
-                             {"withdrawal_id": wid, "reference": w.get("reference")}):
-        await db.payment_accounts.update_one({"id": w["account_id"]},
-                                             {"$inc": {"available_funds": -w["amount"], "committed": -w["amount"]}})
-        await accrue_commission(v["id"], "withdrawals", wid, w["amount"])
-        await notify(w["user_id"], "Withdrawal completed", f"₹{w['amount'] / 100:.2f} has been transferred. Ref {w.get('reference')}")
-    await audit(user, "withdrawal.completed", wid, {"amount": w["amount"]}, request)
+    await do_complete_withdrawal(v, w, user, request)
     return {"ok": True}
 
 

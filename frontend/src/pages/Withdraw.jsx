@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Headset } from "lucide-react";
 import { toast } from "sonner";
 import { api, errMsg, inr, dt, toPaise, newKey } from "@/lib/api";
 import { MobileShell, Field, SilverButton, Badge, Empty } from "@/components/common";
@@ -56,6 +57,9 @@ export default function Withdraw() {
         <Field label={`Amount (min ₹${min})`} prefix="₹" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} testid="withdraw-amount-input" />
         <SilverButton onClick={submit} disabled={busy || !amount || !upi} data-testid="submit-withdrawal-button">REQUEST WITHDRAWAL</SilverButton>
       </div>
+      <Link to="/support?kind=withdrawal" className="mt-5 panel !rounded-2xl h-14 px-4 flex items-center gap-3 text-sm" data-testid="withdraw-support-link">
+        <Headset size={18} className="text-neutral-400" />Customer support · withdrawal not received? Raise a ticket
+      </Link>
       <h3 className="mt-8 mb-3 font-semibold text-neutral-300">Withdrawal requests</h3>
       <div className="space-y-2" data-testid="withdrawal-history">
         {list.length === 0 && <Empty>No withdrawals yet</Empty>}
@@ -67,7 +71,12 @@ export default function Withdraw() {
                 {dt(x.created_at)} · {x.destination?.upi_id || "—"} {x.reference ? `· Ref ${x.reference}` : ""}
               </div>
             </div>
-            <Badge status={x.status} testid={`withdrawal-status-${x.id.slice(0, 8)}`} />
+            <div className="text-right space-y-1">
+              <Badge status={x.status} testid={`withdrawal-status-${x.id.slice(0, 8)}`} />
+              {!["completed", "rejected"].includes(x.status) && (
+                <Link to={`/support?kind=withdrawal&ref=${x.id}`} className="block text-[11px] underline text-neutral-400" data-testid={`withdrawal-ticket-${x.id.slice(0, 8)}`}>Raise ticket</Link>
+              )}
+            </div>
           </div>
         ))}
       </div>

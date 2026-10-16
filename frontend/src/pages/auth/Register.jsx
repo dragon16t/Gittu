@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { api, errMsg } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { AuthCard, Field, SilverButton, TextLink } from "@/components/common";
+import { TermsCheckbox } from "@/components/Terms";
 
 export const RecoveryCodeBox = ({ code, onDone }) => (
   <div className="space-y-4" data-testid="recovery-code-box">
@@ -17,7 +18,7 @@ export const RecoveryCodeBox = ({ code, onDone }) => (
 
 export default function Register() {
   const [params] = useSearchParams();
-  const [f, setF] = useState({ username: "", password: "", confirm_password: "", referral_code: params.get("ref") || "" });
+  const [f, setF] = useState({ username: "", password: "", confirm_password: "", referral_code: params.get("ref") || "", accept_terms: false });
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState(null);
   const { setUser } = useSession();
@@ -26,6 +27,7 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault();
     if (f.password !== f.confirm_password) return toast.error("Passwords do not match");
+    if (!f.accept_terms) return toast.error("Please accept the Terms & Conditions");
     setBusy(true);
     try {
       const { data } = await api.post("/auth/register", f);
@@ -55,7 +57,8 @@ export default function Register() {
           <Field label="Referral code (optional)" testid="register-referral-input" value={f.referral_code}
             onChange={(e) => setF({ ...f, referral_code: e.target.value.toUpperCase() })} />
           <p className="text-xs text-neutral-500">Min 8 characters with letters and numbers.</p>
-          <SilverButton type="submit" disabled={busy} data-testid="register-submit-button">{busy ? "Creating…" : "SIGN UP"}</SilverButton>
+          <TermsCheckbox checked={f.accept_terms} onChange={(v) => setF({ ...f, accept_terms: v })} testid="register-terms-checkbox" />
+          <SilverButton type="submit" disabled={busy || !f.accept_terms} data-testid="register-submit-button">{busy ? "Creating…" : "SIGN UP"}</SilverButton>
         </form>
       )}
     </AuthCard>

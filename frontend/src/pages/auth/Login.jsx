@@ -4,10 +4,12 @@ import { toast } from "sonner";
 import { api, errMsg } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { AuthCard, Field, SilverButton, TextLink } from "@/components/common";
+import { TermsCheckbox } from "@/components/Terms";
 
 export default function Login() {
   const [f, setF] = useState({ username: "", password: "" });
   const [busy, setBusy] = useState(false);
+  const [agree, setAgree] = useState(false);
   const { setUser } = useSession();
   const nav = useNavigate();
   const submit = async (e) => {
@@ -27,7 +29,7 @@ export default function Login() {
     <AuthCard
       testid="login-page"
       title="Login"
-      subtitle="30-second rounds · 1.95× total return"
+      subtitle="30-second rounds · 1.95× total return · High risk, 18+"
       footer={<>New here? <TextLink to="/register" testid="signup-link">Create an account</TextLink></>}
     >
       <form onSubmit={submit} className="space-y-4">
@@ -38,7 +40,8 @@ export default function Login() {
         <div className="text-right text-sm">
           <TextLink to="/forgot" testid="forgot-password-link">Forgot password?</TextLink>
         </div>
-        <SilverButton type="submit" disabled={busy} data-testid="login-submit-button">{busy ? "Signing in…" : "LOGIN"}</SilverButton>
+        <TermsCheckbox checked={agree} onChange={setAgree} testid="login-terms-checkbox" />
+        <SilverButton type="submit" disabled={busy || !agree} data-testid="login-submit-button">{busy ? "Signing in…" : "LOGIN"}</SilverButton>
       </form>
     </AuthCard>
   );

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from pydantic import BaseModel
 from pymongo.errors import DuplicateKeyError
 
-from core import (db, now, iso, uid, current_user, get_config, ledger_debit, audit, notify, verify_pw, enc, dec, mask,
+from core import (db, now, iso, uid, current_user, get_config, ledger_debit, ledger_credit, audit, notify, verify_pw, enc, dec, mask,
                   get_file, check_rate, hit_rate)
 from game import round_exposure, parse, ROUND_SECONDS, REVEAL_SECONDS
 from payments import eligible_deposit_account, assign_withdrawal, OPEN_WITHDRAW
@@ -232,6 +232,13 @@ async def deposit_submit(dep_id: str, body: UtrIn, request: Request, user=Depend
     return {"ok": True, "status": "pending"}
 
 
+@router.post("/deposits/{dep_id}/cancel")
+async def deposit_cancel(dep_id: str, user=Depends(current_user)):
+    await db.deposits.update_one({"id": dep_id, "user_id": user["id"], "status": "initiated"},
+                                 {"$set": {"status": "cancelled", "cancelled_at": iso()}})
+    return {"ok": True}
+
+
 @router.get("/deposits")
 async def my_deposits(user=Depends(current_user)):
     rows = await db.deposits.find({"user_id": user["id"]}, P).sort("created_at", -1).to_list(100)
@@ -295,7 +302,11 @@ async def create_withdrawal(body: WithdrawIn, request: Request, user=Depends(cur
            "destination": {"holder_name": b["holder_name"], "account_number_enc": b.get("account_number_enc", ""),
                            "ifsc": b.get("ifsc", ""), "upi_id": b.get("upi_id", "")},
            "history": [{"at": iso(), "event": "created"}], "created_at": iso()}
-    await db.withdrawals.insert_one(dict(doc))
+    try:
+        await db.withdrawals.insert_one(dict(doc))
+    except DuplicateKeyError:
+        await ledger_credit(user["id"], body.amount, "withdraw_refund", f"wrefund:{wid}", {"withdrawal_id": wid}, from_reserved=True)
+        return await db.withdrawals.find_one({"user_id": user["id"], "client_key": body.client_key}, {"_id": 0, "destination": 0})
     await assign_withdrawal(doc)
     await audit(user, "withdrawal.requested", wid, {"amount": body.amount}, request)
     return {"id": wid, "status": "pending", "amount": body.amount, "balance": w["balance"]}

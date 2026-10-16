@@ -22,6 +22,7 @@ class RegisterIn(BaseModel):
     password: str
     confirm_password: str
     referral_code: str = ""
+    accept_terms: bool = False
 
 
 class LoginIn(BaseModel):
@@ -111,6 +112,8 @@ async def register(body: RegisterIn, request: Request, response: Response):
     username = body.username.strip().lower()
     if not re.fullmatch(r"[a-z0-9_]{3,20}", username):
         raise HTTPException(400, "Username must be 3-20 letters, numbers or underscore")
+    if not body.accept_terms:
+        raise HTTPException(400, "You must accept the Terms & Conditions")
     if body.password != body.confirm_password:
         raise HTTPException(400, "Passwords do not match")
     validate_password(body.password)
@@ -124,7 +127,7 @@ async def register(body: RegisterIn, request: Request, response: Response):
             raise HTTPException(400, "Invalid referral code")
     user = {"id": uid(), "username": username, "role": "user", "status": "active",
             "password_hash": hash_pw(body.password), "recovery_hash": sha(code), "created_at": iso(),
-            "referral_code": new_referral_code(), "referred_by": referrer["id"] if referrer else None}
+            "referral_code": new_referral_code(), "terms_accepted_at": iso(), "terms_version": "2026-06", "referred_by": referrer["id"] if referrer else None}
     try:
         await db.users.insert_one(dict(user))
     except Exception:

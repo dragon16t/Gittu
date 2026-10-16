@@ -21,8 +21,8 @@ const Coupon = ({ c, onClaim }) => (
 );
 
 export default function Messages() {
-  const [coupons, setCoupons] = useState([]);
-  const [notes, setNotes] = useState([]);
+  const [coupons, setCoupons] = useState(null);
+  const [notes, setNotes] = useState(null);
   const load = () => {
     api.get("/coupons").then(({ data }) => setCoupons(data));
     api.get("/notifications").then(({ data }) => setNotes(data));
@@ -39,13 +39,13 @@ export default function Messages() {
     <MobileShell title="Messages" testid="messages-page">
       <h3 className="mb-3 font-semibold text-neutral-300">Coupons</h3>
       <div className="space-y-3" data-testid="coupon-list">
-        {coupons.length === 0 && <Empty>No coupons yet. A ₹10 daily bonus arrives every day.</Empty>}
-        {coupons.map((c) => <Coupon key={c.id} c={c} onClaim={claim} />)}
+        {coupons === null ? <Empty>Loading…</Empty> : coupons.length === 0 && <Empty>No coupons yet. A ₹10 daily bonus arrives every day.</Empty>}
+        {(coupons || []).map((c) => <Coupon key={c.id} c={c} onClaim={claim} />)}
       </div>
       <h3 className="mt-8 mb-3 font-semibold text-neutral-300">Notifications</h3>
       <div className="space-y-2" data-testid="notification-list">
-        {notes.length === 0 && <Empty>No messages</Empty>}
-        {notes.map((n) => (
+        {notes === null ? <Empty>Loading…</Empty> : notes.length === 0 && <Empty>No messages</Empty>}
+        {(notes || []).map((n) => (
           <div key={n.id} className="panel !rounded-2xl px-4 py-3">
             <div className="flex justify-between"><span className="font-semibold text-sm">{n.title}</span><span className="text-[11px] text-neutral-500">{dt(n.created_at)}</span></div>
             <div className="text-xs text-neutral-400 mt-1">{n.body}</div>

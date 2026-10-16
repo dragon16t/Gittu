@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, Dice5, Users, ShieldCheck, Landmark, ArrowLeftRight, FlaskConical, FileBarChart, ScrollText, Lock, LogOut } from "lucide-react";
+import { LayoutDashboard, Dice5, Users, ShieldCheck, Landmark, ArrowLeftRight, FlaskConical, FileBarChart, ScrollText, Lock, LogOut, Headset } from "lucide-react";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import DashboardTab from "./DashboardTab";
@@ -12,11 +12,13 @@ import PaymentsTab from "./PaymentsTab";
 import { PracticeTab, AuditTab } from "./LogTabs";
 import ReportsTab from "./ReportsTab";
 import SecurityTab from "./SecurityTab";
+import TicketsTab from "./TicketsTab";
 
 const TABS = [
   ["dashboard", "Dashboard", LayoutDashboard, DashboardTab], ["game", "Game Configuration", Dice5, GameTab],
   ["users", "User Management", Users, UsersTab], ["verifiers", "Payment Verifiers", ShieldCheck, VerifiersTab],
   ["accounts", "Payment Accounts", Landmark, AccountsTab], ["payments", "Deposits & Withdrawals", ArrowLeftRight, PaymentsTab],
+  ["tickets", "Support Tickets", Headset, TicketsTab],
   ["practice", "Practice Preview Log", FlaskConical, PracticeTab], ["reports", "Reports", FileBarChart, ReportsTab],
   ["audit", "Audit Logs", ScrollText, AuditTab], ["security", "Security", Lock, SecurityTab],
 ];
@@ -32,7 +34,7 @@ export default function AdminPanel() {
       <aside className="lg:w-64 lg:min-h-screen border-b lg:border-b-0 lg:border-r border-white/10 bg-black/60 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen">
         <div className="px-5 py-5 flex lg:block items-center justify-between">
           <div>
-            <div className="text-2xl font-black silver-text">ODD·EVEN</div>
+            <div className="text-2xl font-black silver-text tracking-widest">BLACKBA</div>
             <div className="text-[11px] text-neutral-500 uppercase tracking-[0.2em]">Admin · {user?.username}</div>
           </div>
           <button onClick={logout} className="lg:hidden ghost-chip rounded-full h-9 w-9 flex items-center justify-center" data-testid="admin-logout-mobile"><LogOut size={15} /></button>

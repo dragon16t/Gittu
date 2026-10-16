@@ -98,8 +98,9 @@
 .side-ring.dim { opacity: 0.55; }
 
 .notch {
-    position: absolute; left: 50%; top: -58px; transform: translateX(-50%);
-    width: 150px; height: 150px; border-radius: 9999px;
+    --notch: clamp(96px, 14dvh, 136px);
+    position: absolute; left: 50%; top: calc(var(--notch) * -0.46); transform: translateX(-50%);
+    width: var(--notch); height: var(--notch); border-radius: 9999px;
     background: radial-gradient(circle at 50% 40%, #1d1d1d 0%, #060606 70%);
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 10px 30px rgba(0, 0, 0, 0.8);
 }

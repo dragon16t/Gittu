@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Copy } from "lucide-react";
+import { Copy, Headset } from "lucide-react";
+import { Link } from "react-router-dom";
 import { api, errMsg, inr, dt, toPaise, blobUrl } from "@/lib/api";
 import { MobileShell, Field, SilverButton, Badge, Empty } from "@/components/common";
 
@@ -75,9 +76,12 @@ export default function Deposit() {
           <div className="text-xs text-neutral-500">Account: {dep.account_name}</div>
           <Field label="UTR / Reference number" value={utr} onChange={(e) => setUtr(e.target.value.toUpperCase())} testid="deposit-utr-input" />
           <SilverButton onClick={submit} disabled={busy || utr.length < 6} data-testid="submit-deposit-button">SUBMIT DEPOSIT REQUEST</SilverButton>
-          <button onClick={() => setDep(null)} className="w-full text-sm text-neutral-400" data-testid="deposit-cancel-button">Cancel</button>
+          <button onClick={() => { api.post(`/deposits/${dep.id}/cancel`).catch(() => {}); setDep(null); load(); }} className="w-full text-sm text-neutral-400" data-testid="deposit-cancel-button">Cancel</button>
         </div>
       )}
+      <Link to="/support?kind=deposit" className="mt-5 panel !rounded-2xl h-14 px-4 flex items-center gap-3 text-sm" data-testid="deposit-support-link">
+        <Headset size={18} className="text-neutral-400" />Customer support · deposit not credited? Raise a ticket
+      </Link>
       <h3 className="mt-8 mb-3 font-semibold text-neutral-300">Deposit history</h3>
       <div className="space-y-2" data-testid="deposit-history">
         {list.length === 0 && <Empty>No deposits yet</Empty>}
@@ -88,7 +92,12 @@ export default function Deposit() {
               <div className="text-[11px] text-neutral-500">{dt(d.created_at)} {d.utr ? `· UTR ${d.utr}` : ""}</div>
               {d.reject_reason && <div className="text-[11px] text-red-300">{d.reject_reason}</div>}
             </div>
-            <Badge status={d.status} />
+            <div className="text-right space-y-1">
+              <Badge status={d.status} />
+              {d.status !== "verified" && d.status !== "cancelled" && (
+                <Link to={`/support?kind=deposit&ref=${d.id}`} className="block text-[11px] underline text-neutral-400" data-testid={`deposit-ticket-${d.id.slice(0, 8)}`}>Not credited? Raise ticket</Link>
+              )}
+            </div>
           </div>
         ))}
       </div>

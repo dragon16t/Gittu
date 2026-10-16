@@ -6,6 +6,7 @@ import { api, errMsg, inr, dt, blobUrl } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { Field, SilverButton, Stat, Badge, Empty, GhostButton } from "@/components/common";
 import { Switch } from "@/components/ui/switch";
+import { VerifierTickets } from "./VerifierTickets";
 
 function ChangeTemp({ onDone }) {
   const [f, setF] = useState({ current_password: "", new_password: "" });
@@ -146,6 +147,7 @@ export default function VerifierDashboard() {
         <Stat label="Outstanding withdrawals" value={inr(s.outstanding_withdrawals)} sub={`${s.outstanding_count} open`} testid="v-stat-outstanding" />
       </div>
       <div className="grid md:grid-cols-2 gap-3">{d.accounts.map((a) => <AccountCard key={a.id} a={a} />)}</div>
+      <VerifierTickets />
       <h2 className="font-bold text-lg">Deposit requests</h2>
       <Table head={["User", "Amount", "UTR", "Status", "Created", ""]} testid="verifier-deposits-table">
         {d.deposits.filter((x) => x.status !== "initiated").map((x) => <DepositRow key={x.id} d={x} reload={load} />)}

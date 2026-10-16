@@ -14,6 +14,7 @@ import Settings from "@/pages/Settings";
 import Messages from "@/pages/Messages";
 import Refer from "@/pages/Refer";
 import History from "@/pages/History";
+import Support from "@/pages/Support";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminPanel from "@/pages/admin/AdminPanel";
 import VerifierLogin from "@/pages/verifier/VerifierLogin";
@@ -55,6 +56,7 @@ export default function App() {
               <Route path="/messages" element={<Messages />} />
               <Route path="/refer" element={<Refer />} />
               <Route path="/history" element={<History />} />
+              <Route path="/support" element={<Support />} />
             </Route>
           </Route>
           <Route element={<Portal portal="admin" />}>

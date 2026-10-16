@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from core import (db, iso, uid, current_admin, get_config, ledger_credit, ledger_debit, audit, notify, hash_pw,
-                  gen_password, put_file, get_file, dec)
+                  gen_password, verify_pw, put_file, get_file, dec)
 from game import liabilities, round_exposure
 from payments import commission_summary, release_withdrawal, assign_withdrawal, OPEN_WITHDRAW
 from routes_auth import reauth
@@ -116,7 +116,7 @@ async def dashboard(admin=Depends(current_admin)):
     accrued = await ssum("commission_ledger", {"type": "accrual"})
     paid = await ssum("commission_ledger", {"type": "release"})
     adj = await ssum("commission_ledger", {"type": "adjustment"}) - await ssum("commission_ledger", {"type": "reversal"})
-    accounts = await db.payment_accounts.find(P, {"_id": 0, "qr_path": 0}).to_list(500)
+    accounts = await db.payment_accounts.find({}, {"_id": 0, "qr_path": 0}).to_list(500)
     recon = await reconcile_data()
     ggr = stakes - unsettled - payouts
     return {"total_deposits": await ssum("deposits", {"status": "verified"}),
@@ -163,6 +163,9 @@ async def update_config(body: ConfigIn, request: Request, admin=Depends(current_
     if upd.get("min_stake", 1) <= 0 or ("min_stake" in upd and "max_stake" in upd and upd["min_stake"] > upd["max_stake"]):
         raise HTTPException(400, "Invalid stake limits")
     before = await get_config()
+    upd = {k: v for k, v in upd.items() if before.get(k) != v}
+    if not upd:
+        return before
     await db.config.update_one({"id": "game"}, {"$set": upd}, upsert=True)
     await db.config_history.insert_one({"id": uid(), "changes": upd, "before": {k: before.get(k) for k in upd},
                                         "by": admin["username"], "created_at": iso()})
@@ -289,7 +292,8 @@ async def update_verifier(vid: str, body: VerifierUpd, request: Request, admin=D
         raise HTTPException(404, "Verifier not found")
     if upd.get("status") == "disabled":
         await db.sessions.update_many({"user_id": v["user_id"]}, {"$set": {"revoked": True}})
-    await db.users.update_one({"id": v["user_id"]}, {"$set": {"status": "active" if upd.get("status", "active") == "active" else "suspended"}})
+    if "status" in upd:
+        await db.users.update_one({"id": v["user_id"]}, {"$set": {"status": "active" if upd["status"] == "active" else "suspended"}})
     await audit(admin, "verifier.updated", vid, upd, request)
     return {"ok": True}
 
@@ -573,4 +577,6 @@ async def seed_admin():
         if totp:
             doc["totp_secret"] = enc(totp)
         await db.users.insert_one(doc)
+    elif not verify_pw(pw, existing["password_hash"]):
+        await db.users.update_one({"id": existing["id"]}, {"$set": {"password_hash": hash_pw(pw)}})
     await db.config.update_one({"id": "game"}, {"$setOnInsert": {"id": "game"}}, upsert=True)
