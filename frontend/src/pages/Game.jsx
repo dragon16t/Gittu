@@ -6,7 +6,7 @@ import { api, errMsg, inr, newKey, toPaise } from "@/lib/api";
 import { TopBar, CountdownRing, SideCircle, StakePicker, ResultStage, RecentResults } from "@/components/game/GameParts";
 import { useMusic, useRevealAnimation } from "@/components/game/hooks";
 import { Confetti } from "@/components/game/Confetti";
-import { playBetSound, playWinSound } from "@/lib/sfx";
+import { playBetSound, playWinSound, unlockAudio } from "@/lib/sfx";
 
 const WinTicker = ({ winners }) => {
   if (!winners.length) return <div className="h-[22px] shrink-0" />;
@@ -102,6 +102,7 @@ export default function Game() {
   const statusLabel = state?.paused ? "Paused" : bettingOpen ? "Next round" : round ? "Revealing" : "Starting";
 
   const placeBet = async () => {
+    unlockAudio();
     if (!side) return toast.error("Select ODD or EVEN");
     const paise = toPaise(amount);
     if (!paise || paise <= 0) return toast.error("Enter a stake amount");

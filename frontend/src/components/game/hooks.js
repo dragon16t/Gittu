@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { unlockAudio } from "@/lib/sfx";
+
+const UNLOCK_EVENTS = ["click", "touchend", "keydown"];
 
 export const useMusic = () => {
   const audio = useRef(null);
@@ -8,16 +11,18 @@ export const useMusic = () => {
     a.loop = true;
     a.volume = 0.45;
     audio.current = a;
-    const start = () => localStorage.getItem("oe_music") !== "off" && a.play().catch(() => {});
-    start();
-    const unlock = () => start();
+    const start = () => {
+      if (localStorage.getItem("oe_music") !== "off" && a.paused) a.play().catch(() => {});
+    };
+    const unlock = () => { unlockAudio(); start(); };
     const vis = () => (document.hidden ? a.pause() : start());
-    window.addEventListener("pointerdown", unlock, { once: true });
+    start();
+    UNLOCK_EVENTS.forEach((e) => window.addEventListener(e, unlock, true));
     document.addEventListener("visibilitychange", vis);
     return () => {
       a.pause();
       a.src = "";
-      window.removeEventListener("pointerdown", unlock);
+      UNLOCK_EVENTS.forEach((e) => window.removeEventListener(e, unlock, true));
       document.removeEventListener("visibilitychange", vis);
     };
   }, []);
@@ -25,7 +30,7 @@ export const useMusic = () => {
     const next = !on;
     setOn(next);
     localStorage.setItem("oe_music", next ? "on" : "off");
-    if (next) audio.current?.play().catch(() => {});
+    if (next) { unlockAudio(); audio.current?.play().catch(() => {}); }
     else audio.current?.pause();
   };
   return [on, toggle];

@@ -85,6 +85,16 @@ export default function GameTab() {
           <div className="text-neutral-500">Payout: winning stake × {cfg.multiplier_bps / 100} total return. Round 30s + 3s reveal.</div>
         </div>
       </Section>
+      {cfg.mode === "fair" && (
+        <Section title="Mode 3 · Next 10 results (admin only)" testid="admin-fair-upcoming">
+          <DataTable rows={g.fair_upcoming || []} cols={[
+            { label: "Round", render: (r) => <span data-testid={`admin-fair-round-${r.number}`}>#{r.number}{c?.number === r.number ? " (current)" : ""}</span> },
+            { label: "Result", render: (r) => <b className={r.result === "ODD" ? "text-emerald-300" : "text-red-300"} data-testid={`admin-fair-result-${r.number}`}>{r.result}</b> },
+            { label: "Dice", key: "dice" },
+            { label: "Published hash", render: (r) => <span className="mono text-[11px] text-neutral-400 break-all">{r.hash}</span> },
+          ]} />
+        </Section>
+      )}
       <Section title="Previous rounds" testid="admin-rounds">
         <DataTable rows={g.rounds} cols={[
           { label: "#", key: "number" }, { label: "Status", key: "status" }, { label: "Mode", key: "mode" },

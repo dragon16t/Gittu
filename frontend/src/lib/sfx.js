@@ -6,6 +6,16 @@ const ac = () => {
 };
 const muted = () => localStorage.getItem("oe_music") === "off";
 
+export const unlockAudio = () => {
+  try {
+    const c = ac();
+    const src = c.createBufferSource();
+    src.buffer = c.createBuffer(1, 1, 22050);
+    src.connect(c.destination);
+    src.start(0);
+  } catch {}
+};
+
 const tone = (freq, start, dur, type = "sine", vol = 0.18) => {
   const c = ac();
   const o = c.createOscillator();

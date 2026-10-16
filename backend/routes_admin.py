@@ -9,7 +9,7 @@ from typing import Optional
 
 from core import (db, iso, uid, current_admin, get_config, ledger_credit, ledger_debit, audit, notify, hash_pw,
                   gen_password, verify_pw, put_file, get_file, dec)
-from game import liabilities, round_exposure
+from game import liabilities, round_exposure, ensure_commitments, FAIR_AHEAD
 from payments import commission_summary, release_withdrawal, assign_withdrawal, OPEN_WITHDRAW
 from routes_auth import reauth
 from routes_verifier import refund_withdrawal
@@ -151,7 +151,15 @@ async def game_monitor(admin=Depends(current_admin)):
         cur.pop("dice", None)
     cur and cur.pop("salt", None)
     pend = await ssum("withdrawals", {"status": {"$in": OPEN_WITHDRAW}})
-    return {"config": cfg, "current": cur, "exposure": exp, "rounds": rounds,
+    fair = []
+    if cfg["mode"] == "fair":
+        top = await db.rounds.find_one({}, P, sort=[("number", -1)])
+        await ensure_commitments((top["number"] if top else 0) + 1)
+        fair = await db.fair_seeds.find({"status": "pending"}, {"_id": 0, "number": 1, "dice": 1, "hash": 1}) \
+            .sort("number", 1).to_list(FAIR_AHEAD)
+        for s in fair:
+            s["result"] = "ODD" if s["dice"] % 2 else "EVEN"
+    return {"config": cfg, "current": cur, "exposure": exp, "rounds": rounds, "fair_upcoming": fair,
             "risk": {**await liabilities(), "pending_withdrawals": pend, "company_reserve": cfg["company_reserve"],
                      "realized_pnl": await ssum("rounds", {"status": "settled"}, "$ggr")}}
 
