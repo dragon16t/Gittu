@@ -4,14 +4,31 @@ import { api, errMsg, inr, dt, toPaise } from "@/lib/api";
 import { Badge } from "@/components/common";
 import { DataTable, Section, Modal, Input, Btn } from "./ui";
 
+const LOGIN_URL = `${window.location.origin}/verifier/login`;
+const copyLink = () => { navigator.clipboard?.writeText(LOGIN_URL); toast.success("Verifier login link copied"); };
+
+const LoginLink = () => (
+  <div className="panel !rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3" data-testid="verifier-login-link-box">
+    <div className="min-w-0">
+      <div className="text-[11px] uppercase tracking-wider text-neutral-500">Verifier login link</div>
+      <a href={LOGIN_URL} target="_blank" rel="noreferrer" className="mono text-sm underline break-all" data-testid="verifier-login-link">{LOGIN_URL}</a>
+    </div>
+    <Btn onClick={copyLink} data-testid="copy-verifier-login-link">Copy link</Btn>
+  </div>
+);
+
 const Creds = ({ c, onClose }) => (
   <Modal open onClose={onClose} title="Verifier credentials" testid="verifier-credentials-modal">
     <p className="text-sm text-neutral-400">Shown once. Share securely; the verifier must change it at first login.</p>
     <div className="space-y-2 mono">
       <div className="field px-3 py-2" data-testid="generated-verifier-username">ID: {c.username}</div>
       <div className="field px-3 py-2" data-testid="generated-verifier-password">Temp password: {c.temporary_password}</div>
+      <div className="field px-3 py-2 break-all" data-testid="generated-verifier-login-url">Login: {LOGIN_URL}</div>
     </div>
-    <Btn primary className="w-full h-10" onClick={onClose} data-testid="credentials-close">Done</Btn>
+    <div className="grid grid-cols-2 gap-2">
+      <Btn className="h-10" onClick={() => { navigator.clipboard?.writeText(`Login: ${LOGIN_URL}\nID: ${c.username}\nTemporary password: ${c.temporary_password}`); toast.success("Credentials copied"); }} data-testid="copy-credentials">Copy all</Btn>
+      <Btn primary className="h-10" onClick={onClose} data-testid="credentials-close">Done</Btn>
+    </div>
   </Modal>
 );
 
@@ -117,6 +134,7 @@ export default function VerifiersTab() {
   return (
     <Section title="Payment verifier management" testid="admin-verifiers"
       actions={<Btn primary onClick={() => setModal({ kind: "create" })} data-testid="add-verifier-button">+ Add verifier</Btn>}>
+      <LoginLink />
       <DataTable rows={rows} minW={1100} cols={[
         { label: "Verifier", render: (r) => <><div className="font-semibold">{r.display_name}</div><div className="mono text-[11px] text-neutral-500">{r.username}</div></> },
         { label: "Status", render: (r) => <><Badge status={r.status} /><div className={`text-[11px] mt-1 ${r.online ? "text-emerald-400" : "text-neutral-500"}`}>{r.online ? "online" : "offline"}</div></> },
