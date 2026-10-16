@@ -76,6 +76,7 @@ async def game_state(user=Depends(current_user)):
             "recent": [r["result"] for r in recent], "my_bets": my, "last_round_bets": last_bets,
             "balance": w["balance"] if w else 0, "paused": cfg["paused"],
             "config": {"min_stake": cfg["min_stake"], "max_stake": cfg["max_stake"], "multiplier_bps": cfg["multiplier_bps"],
+                       "minority_banner": cfg["mode"] == "minority",
                        "mode": cfg["mode"], "round_seconds": ROUND_SECONDS, "reveal_seconds": REVEAL_SECONDS}}
 
 

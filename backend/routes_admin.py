@@ -159,7 +159,7 @@ async def game_monitor(admin=Depends(current_admin)):
 @router.put("/config")
 async def update_config(body: ConfigIn, request: Request, admin=Depends(current_admin)):
     upd = {k: v for k, v in body.model_dump().items() if v is not None}
-    if "mode" in upd and upd["mode"] not in ("random", "risk"):
+    if "mode" in upd and upd["mode"] not in ("random", "risk", "minority"):
         raise HTTPException(400, "Mode must be random or risk")
     if "commission_basis" in upd and upd["commission_basis"] not in ("deposits", "withdrawals", "both"):
         raise HTTPException(400, "Invalid commission basis")

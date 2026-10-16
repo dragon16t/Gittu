@@ -66,13 +66,20 @@ async def settle_round(round_id: str):
         "ggr": total_stake - total_payout}})
 
 
-def draw_result():
+def draw_result(mode: str = "random", totals: dict = None):
+    t = totals or {}
+    odd, even = t.get("odd_stake", 0), t.get("even_stake", 0)
+    if mode == "minority" and odd != even:
+        result = "ODD" if odd < even else "EVEN"
+        dice = secrets.choice([1, 3, 5] if result == "ODD" else [2, 4, 6])
+        return dice, result
     dice = secrets.randbelow(6) + 1
     return dice, ("ODD" if dice % 2 else "EVEN")
 
 
 async def record_result(rnd: dict):
-    dice, result = draw_result()
+    fresh = await db.rounds.find_one({"id": rnd["id"]}, NOID) or rnd
+    dice, result = draw_result(fresh.get("mode", "random"), fresh.get("totals"))
     salt = secrets.token_hex(16)
     await db.rounds.update_one({"id": rnd["id"], "status": "closed", "result": None}, {"$set": {
         "status": "revealing", "dice": dice, "result": result, "salt": salt,
