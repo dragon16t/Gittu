@@ -43,6 +43,12 @@ Later additions:
   - Removed the Minority Wins warning banner from the whole platform (Mode 2 logic is unchanged)
   - Mode 3, Fair Proof (admin mode "fair"): results for the next 10 rounds are pre-generated in `fair_seeds` and published as SHA256(number:dice:salt). Used/void seeds are revealed after the round. The /fair page checks each hash in the browser, and a shield icon appears in the game header only while this mode is active. Endpoint: GET /api/game/fair
 
+- Iteration 6:
+  - Admin Game tab: "Mode 3 · Next 10 results (admin only)" table (round, result, dice, hash) shown while mode = fair, via the fair_upcoming field of GET /api/admin/game
+  - Shield / Fair Proof icon removed from the user app (the /fair page still exists but is not linked)
+  - Sound fixed: audio now unlocks on click/touchend/keydown (pointerdown doesn't count on mobile), and the AudioContext is unlocked during the user tap, so music, bet and win sounds work
+  - Read-only integrity audit: 0 wrong settlements, every stake and win has a ledger entry, and every wallet balance matches its ledger. No financial data is ever deleted (only sessions, rate limits and 2FA codes expire)
+
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)
 - P1: Styled modals instead of window.prompt/confirm in the verifier portal

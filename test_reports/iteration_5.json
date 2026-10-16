@@ -1,0 +1,24 @@
+{
+  "summary": "Iteration 5: read-only and UI testing only. No bets, users, deposits, withdrawals or config changes were made, and the data-creating pytest suites were not run. (1) Admin Game tab: admin-fair-upcoming ('Mode 3 · Next 10 results (admin only)') sits directly below Game configuration and lists 10 consecutive rounds (#426 (current) to #435), each with result, dice and published hash. There are 10 admin-fair-result-<n> cells. config-mode-select shows 'fair' and offers 'Mode 3 · Fair Proof'. (2) API consistency: the 10 admin fair_upcoming hashes are identical to the 10 player1 /api/game/fair upcoming hashes. The user payload has no dice/result/salt leak (keys: number, committed_at, hash). The first upcoming round equals the current round. In two separate runs, rounds 422/423 and 428/429 finished with exactly the result, dice and hash the admin saw beforehand (/api/game/history and /game/fair revealed). All 19 used seeds verify as SHA256(number:dice:salt). (3) User game page at 390x844: no nav-fair-proof icon, no minority or fair-proof text, scrollWidth 390 = clientWidth, scrollHeight 844 = clientHeight, the footer ends at 844, and the whole layout fits on one screen. (4) Sound: /game-music.mp3 is served (200, audio/mpeg, 657KB). After a neutral click the HTMLAudio is playing (paused=false, currentTime about 4.5s) and the AudioContext state is 'running'. music-toggle-button pauses it (localStorage oe_music=off), a click while off keeps it paused, and toggling back resumes playback (currentTime advancing, oe_music=on). Bet and win sounds were reviewed in code only: playBetSound runs after a successful bet POST and playWinSound runs on a won round. They were not triggered because no bets were allowed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Game tab fair table", "issues": ["During the 3s reveal phase, current round N's seed is already 'used', so the list starts at N+1 and no row shows '(current)'. This is cosmetic and expected."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/readonly_fair_check.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "GET /api/admin/game and GET /api/game/fair call ensure_commitments, so GET requests write to the database (only system fair_seeds upserts, which are idempotent). That is acceptable, but GET handlers with side effects are worth noting.",
+    "The single 'AbortError' from HTMLMediaElement.play on mount comes from the React StrictMode/dev double-mount cleanup (the first Audio's src is cleared). It is harmless.",
+    "The AudioContext is created lazily on the first gesture (unlockAudio). playWinSound depends on a prior gesture, which is fine because the user must click Place Bet to win."
+  ],
+  "updated_files": ["/app/backend/tests/readonly_fair_check.py"],
+  "success_rate": {"backend": "100% (read-only GET checks)", "frontend": "100%"},
+  "seed_data_creation": "None. Only login sessions were created, plus the fair_seeds commitments the server generates itself.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The user forbids test data. Use backend/tests/readonly_fair_check.py (read-only: logs in admin+player1, compares admin fair_upcoming with user /game/fair hashes, waits about 60s for 2 rounds and checks history). The mode is 'fair' and must stay that way. Login testids: login-username-input, login-password-input, login-terms-checkbox, login-submit-button. Admin testids: admin-username-input, admin-password-input, admin-login-button, admin-mfa-code-input, admin-tab-game."
+}
