@@ -57,7 +57,7 @@ def test_health():
 def test_register_users_and_validation():
     a = sess()
     S["a_name"] = "test_a" + secrets.token_hex(3)
-    r = a.post(f"{API}/auth/register", json={"username": S["a_name"], "password": "Passw0rd!", "confirm_password": "Passw0rd!"})
+    r = a.post(f"{API}/auth/register", json={"username": S["a_name"], "password": "Passw0rd!", "confirm_password": "Passw0rd!", "accept_terms": True})
     assert r.status_code == 200, r.text
     d = r.json()
     assert d["user"]["username"] == S["a_name"] and len(d["recovery_code"]) == 19
@@ -65,15 +65,15 @@ def test_register_users_and_validation():
     S["a"], S["a_recovery"], S["a_id"] = a, d["recovery_code"], d["user"]["id"]
     # duplicate + weak
     assert sess().post(f"{API}/auth/register", json={"username": S["a_name"], "password": "Passw0rd!",
-                                                       "confirm_password": "Passw0rd!"}).status_code == 400
+                                                       "confirm_password": "Passw0rd!", "accept_terms": True}).status_code == 400
     assert sess().post(f"{API}/auth/register", json={"username": "test_weak" + secrets.token_hex(2), "password": "abc",
-                                                       "confirm_password": "abc"}).status_code == 400
+                                                       "confirm_password": "abc", "accept_terms": True}).status_code == 400
     assert sess().post(f"{API}/auth/register", json={"username": "test_bad" + secrets.token_hex(2), "password": "Passw0rd!",
-                                                       "confirm_password": "Passw0rd!", "referral_code": "ZZZZZZZ"}).status_code == 400
+                                                       "confirm_password": "Passw0rd!", "accept_terms": True, "referral_code": "ZZZZZZZ"}).status_code == 400
     code = a.get(f"{API}/referrals").json()["code"]
     b = sess()
     S["b_name"] = "test_b" + secrets.token_hex(3)
-    r = b.post(f"{API}/auth/register", json={"username": S["b_name"], "password": "Passw0rd!", "confirm_password": "Passw0rd!",
+    r = b.post(f"{API}/auth/register", json={"username": S["b_name"], "password": "Passw0rd!", "confirm_password": "Passw0rd!", "accept_terms": True,
                                              "referral_code": code.lower()})
     assert r.status_code == 200, r.text
     S["b"], S["b_id"], S["b_recovery"] = b, r.json()["user"]["id"], r.json()["recovery_code"]
@@ -122,9 +122,9 @@ def test_admin_config_history_pause_resume():
     r = ad.put(f"{API}/admin/config", json={"min_stake": cfg["min_stake"], "practice_enabled": True})
     assert r.status_code == 200 and r.json()["min_stake"] == cfg["min_stake"]
     assert ad.put(f"{API}/admin/config", json={"mode": "bogus"}).status_code == 400
-    hist = ad.get(f"{API}/admin/config/history").json()
-    assert hist and "min_stake" in hist[0]["changes"]
     assert ad.put(f"{API}/admin/config", json={"paused": True}).json()["paused"] is True
+    hist = ad.get(f"{API}/admin/config/history").json()
+    assert hist and hist[0]["changes"] == {"paused": True}  # only changed fields recorded
     assert ad.put(f"{API}/admin/config", json={"paused": False}).json()["paused"] is False
 
 

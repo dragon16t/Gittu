@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 2: tested BLACKBA branding, T&C on register/login, support tickets (deposit and withdrawal flows, end-to-end through user, admin and verifier), the one-screen mobile game layout, and the iteration-1 regressions. Backend: new suite /app/backend/tests/test_tickets_iter2.py passed 12 of 14. The 2 failures are real bugs, both 500 errors. The old suite test_oddeven_e2e.py passes 24 of 24 after two small test updates. UI (Playwright): every requested flow works. Register: SIGN UP stays disabled until the terms box is ticked. The T&C link opens the dialog without ticking the box, and I AGREE ticks it. Login: LOGIN stays disabled until ticked. The page title and the auth and admin screens show BLACKBA. Game at 390x844: scrollHeight is 844 (no scroll) and scrollWidth is 390. The header (0-109px) and bet bar (661-844px) do not overlap the recent results (bottom at 647px). A bet placed and the balance was debited. Deposit ticket: the 'Not credited? Raise ticket' link preselects the deposit. Admin shares it with the routed agent (preselected). The verifier enters a UTR and clicks Approve. The balance rose by exactly ₹150 (1209.50 -> 1359.50). Admin reply and resolve work. The user sees the Resolved timeline and can reply. Withdrawal ticket: the verifier entered a reference and uploaded a PNG. The withdrawal became completed and the admin modal shows the proof image (blob loads, naturalWidth 16). Processing it a second time returns 400. ACLs checked: a second active ticket on the same transaction is blocked, another user's transaction is blocked, and a verifier gets 404 before the ticket is shared. The Messages page shows Loading…, deposit Cancel sets status to cancelled, and an unchanged config save writes no history row.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/verifier/tickets/{tid}/approve-deposit", "issue": "Returns 500 when the verifier enters a UTR that another deposit already uses. The unique index deposits.utr raises DuplicateKeyError in the update_one at tickets.py:213, and nothing catches it. To reproduce: reject a deposit, raise a ticket on it, share it, then approve with an already-used UTR. Fix: check for the duplicate first and catch DuplicateKeyError, returning 400 'This UTR has already been submitted'.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/admin/tickets/{tid}/note", "issue": "An unknown ticket id gives a 500 (TypeError: 'NoneType' object is not subscriptable at tickets.py:137), because t is None when notify runs. Look the ticket up first and return 404. Replies to closed tickets should probably be rejected too."},
+      {"endpoint": "POST /api/admin/tickets/{tid}/assign", "issue": "Accepts DISABLED verifiers: there is no status:'active' check, and the admin dropdown lists disabled agents. It also accepts resolved or closed tickets and silently moves them back to 'assigned'."},
+      {"endpoint": "POST /api/verifier/tickets/{tid}/approve-deposit and /process-withdrawal", "issue": "They don't check the verifier's perm_deposit / perm_withdraw flags, unlike the normal verify and withdrawal routes. A deposit can also be approved with no UTR at all if the verifier leaves the UTR field blank (initiated deposit, no UTR)."},
+      {"endpoint": "POST /api/verifier/tickets/{tid}/process-withdrawal", "issue": "The proof is uploaded and pushed to the ticket and withdrawal before do_complete_withdrawal's conditional transition. If two requests race, the losing one gets a 400 but still leaves an orphan proof entry. Push the proof only after the transition succeeds."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Admin TicketsTab modal", "issue": "With the default 'Active' filter, clicking 'Mark resolved' or 'Close' reloads the list. The ticket drops out of the list, so setSel becomes undefined and the modal closes abruptly. The admin never sees the result or the Reopen button. Keep the selected ticket by refetching it separately, or switch the filter.", "selector": "[data-testid='ticket-resolve-button']", "priority": "MEDIUM"},
+      {"component": "Support TicketCard (user)", "issue": "The status badge shows 'COMPLETED' for resolved/closed tickets (Badge status is mapped to 'completed'), while the text below says 'Resolved'. The two labels don't match.", "selector": "[data-testid^='ticket-status-TCK-']", "priority": "LOW"},
+      {"component": "Game page on smaller phones", "issue": "Fits 390x844 as required. At 360x740 the fixed bet bar (top 532px) covers the Recent Results card (bottom 586px). The page cannot scroll, so recent results can't be reached. Consider making the layout height-responsive, e.g. smaller circles or hiding the result stage when the viewport height is under 760px.", "selector": "[data-testid='recent-results']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Verifier tickets", "issues": ["Approve deposit still uses native window.confirm.", "Usernames are shown with CSS capitalize ('Test_tac94ea'); they should be shown as-is.", "The '3 active' count includes agent_actioned tickets."]},
+      {"screen": "Game", "issues": ["The bet success toast covers the header balance and the Deposit row at the top of the screen."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_tickets_iter2.py", "/app/backend/tests/test_oddeven_e2e.py", "/app/test_reports/pytest/pytest_tickets_iter2.xml", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "tickets.py approve-deposit: handle a duplicate UTR (pre-check and catch DuplicateKeyError) and return 400, not 500",
+    "tickets.py admin_note: return 404 for an unknown ticket (currently 500)",
+    "admin_assign: allow only active verifiers and filter disabled ones out of the agent dropdown; block assigning resolved/closed tickets",
+    "Ticket verifier actions: enforce perm_deposit / perm_withdraw; consider requiring a UTR when the deposit has none",
+    "Admin ticket modal: keep it open after resolve/close under the Active filter",
+    "User ticket badge: show 'Resolved'/'Closed' instead of 'Completed'"
+  ],
+  "critical_code_review_comments": [
+    "Money paths stay idempotent: a second approve-deposit returns 400 and the balance is credited once; a second process-withdrawal returns 400 and the reserve is settled once.",
+    "The old suite and the new suite both toggle pv1001 online and may create TEST verifiers. Under pytest.ini's -n 2 --dist loadscope they run in parallel and interfere: withdrawals get routed to a freshly created TEST_Ver account. Run each file with -n 0 separately.",
+    "Old test verifiers pv1004/pv1005 (TEST_Ver) were left ACTIVE by earlier interrupted runs and were taking withdrawal routing. The tester disabled them in mongo."
+  ],
+  "updated_files": ["/app/backend/tests/test_tickets_iter2.py (new)", "/app/backend/tests/setup_wd_ticket.py (new UI-setup helper)", "/app/backend/tests/test_oddeven_e2e.py (register payloads now send accept_terms:true; config-history assertion changed to match the only-changed-fields behaviour)"],
+  "success_rate": {"backend": "95% (36/38: 12/14 new + 24/24 old; 2 failures are 500 bugs)", "frontend": "~95% (all requested flows pass; minor modal and badge issues)"},
+  "seed_data_creation": "New users test_t*/test_ui*/test_tac94ea (pw Passw0rd!). Tickets TCK-534E35 (player1 deposit ₹150, resolved, balance credited) and TCK-86D15F (withdrawal ₹300, completed with proof). player1 balance is ₹1,359.50 and has an initiated ₹500 deposit. TEST_Ver verifiers are all disabled; pv1001 is ONLINE.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run the suites separately: cd /app/backend && REACT_APP_BACKEND_URL=<url> pytest tests/test_tickets_iter2.py -n 0 (~10s), then pytest tests/test_oddeven_e2e.py -n 0 (~60s). Clear db.rate_events first (register limit is 10/hr/IP). Multipart uploads with a requests Session that sets a JSON Content-Type need headers={'Content-Type': None}. tests/setup_wd_ticket.py creates a withdrawal ticket shared with pv1001 for UI testing. Admin TOTP can be computed inline with hmac/base32."
+}

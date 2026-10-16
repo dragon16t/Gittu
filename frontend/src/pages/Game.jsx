@@ -116,14 +116,16 @@ export default function Game() {
       </header>
 
       <main className="flex-1 min-h-0 overflow-y-auto px-4 pt-1 pb-2 flex flex-col justify-evenly gap-2">
-        <div className="relative shrink-0 mt-[clamp(46px,6.4dvh,64px)] panel !rounded-[30px] pt-[clamp(56px,8dvh,80px)] pb-3 px-3">
-          <CountdownRing label={statusLabel} value={bettingOpen ? fmtTime(remaining) : "00:00"}
-            progress={bettingOpen ? remaining / (state?.config?.round_seconds || 30) : 0} />
-          <span className="absolute top-2.5 left-4 text-[10px] text-neutral-500 mono" data-testid="round-number">#{round?.number || "—"}</span>
-          <span className="absolute top-2.5 right-4 text-[10px] text-neutral-500" data-testid="round-status">{bettingOpen ? "Betting open" : "Betting closed"}</span>
-          <div className="flex items-center justify-around relative">
+        <div className="relative shrink-0 panel !rounded-[28px] px-4 pt-3 pb-3 overflow-hidden" data-testid="game-board">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <span className="text-[10px] text-neutral-500 mono justify-self-start" data-testid="round-number">Round #{round?.number || "—"}</span>
+            <CountdownRing label={statusLabel} value={bettingOpen ? fmtTime(remaining) : "00:00"}
+              progress={bettingOpen ? remaining / (state?.config?.round_seconds || 30) : 0} />
+            <span className={`text-[10px] justify-self-end ${bettingOpen ? "text-emerald-400" : "text-neutral-500"}`} data-testid="round-status">{bettingOpen ? "Betting open" : "Betting closed"}</span>
+          </div>
+          <div className="flex items-center justify-around relative mt-[clamp(8px,1.6dvh,16px)] py-[10px]">
             <SideCircle side="ODD" multiplier={mult} active={side === "ODD"} dim={side === "EVEN"} onClick={() => setSide("ODD")} />
-            <div className="absolute left-1/2 top-[-20px] bottom-0 w-px bg-gradient-to-b from-white/40 via-white/15 to-transparent" />
+            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-white/30 via-white/10 to-transparent" />
             <SideCircle side="EVEN" multiplier={mult} active={side === "EVEN"} dim={side === "ODD"} onClick={() => setSide("EVEN")} />
           </div>
           <div className="flex justify-around mt-2 text-[10px] text-neutral-500">

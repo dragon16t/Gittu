@@ -1,3 +1,4 @@
+import re
 import secrets
 
 from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File, Form, Response
@@ -120,9 +121,11 @@ async def admin_assign(tid: str, body: AssignIn, request: Request, admin=Depends
     t = await db.tickets.find_one({"id": tid}, P)
     if not t:
         raise HTTPException(404, "Ticket not found")
+    if t["status"] in ("resolved", "closed"):
+        raise HTTPException(400, "Reopen the ticket before sharing it")
     ref = await ref_doc(t["kind"], t.get("ref_id"))
     vid = body.verifier_id or (ref or {}).get("verifier_id")
-    v = await db.verifiers.find_one({"id": vid}, P) if vid else None
+    v = await db.verifiers.find_one({"id": vid, "status": "active"}, P) if vid else None
     if not v:
         raise HTTPException(400, "Select an agent to share this ticket with")
     await push(tid, event(admin, "assigned", f"Shared with {v['display_name']}", verifier_id=vid), "assigned", verifier_id=vid)
@@ -132,8 +135,10 @@ async def admin_assign(tid: str, body: AssignIn, request: Request, admin=Depends
 
 @router.post("/admin/tickets/{tid}/note")
 async def admin_note(tid: str, body: NoteIn, admin=Depends(current_admin)):
-    await push(tid, event(admin, "admin_reply", body.message.strip()[:1000]))
     t = await db.tickets.find_one({"id": tid}, P)
+    if not t or t["status"] == "closed":
+        raise HTTPException(404, "Ticket not found or closed")
+    await push(tid, event(admin, "admin_reply", body.message.strip()[:1000]))
     await notify(t["user_id"], f"Support update {t['number']}", body.message.strip()[:200])
     return {"ok": True}
 
@@ -208,10 +213,20 @@ async def ticket_approve_deposit(tid: str, body: ApproveIn, request: Request, us
     t = await my_ticket(tid, v)
     if t["kind"] != "deposit":
         raise HTTPException(400, "Not a deposit ticket")
+    if not v.get("perm_deposit"):
+        raise HTTPException(403, "No deposit permission")
     d = await owned_ref(t, v)
-    if body.utr.strip() and not d.get("utr"):
-        await db.deposits.update_one({"id": d["id"]}, {"$set": {"utr": body.utr.strip().upper()}})
-        d["utr"] = body.utr.strip().upper()
+    if not d.get("utr"):
+        utr = body.utr.strip().upper()
+        if not re.fullmatch(r"[A-Z0-9]{6,30}", utr):
+            raise HTTPException(400, "Enter the UTR from your bank statement")
+        if await db.deposits.find_one({"utr": utr}):
+            raise HTTPException(400, "This UTR has already been submitted")
+        try:
+            await db.deposits.update_one({"id": d["id"]}, {"$set": {"utr": utr}})
+        except DuplicateKeyError:
+            raise HTTPException(400, "This UTR has already been submitted")
+        d["utr"] = utr
     await do_verify_deposit(v, d, user, request, allowed=("initiated", "pending", "rejected"), note=f"ticket {t['number']}")
     await push(tid, event(user, "deposit_approved", body.note or "Payment confirmed and wallet credited"), "agent_actioned")
     return {"ok": True}
@@ -224,6 +239,8 @@ async def ticket_process_withdrawal(tid: str, request: Request, reference: str =
     t = await my_ticket(tid, v)
     if t["kind"] != "withdrawal":
         raise HTTPException(400, "Not a withdrawal ticket")
+    if not v.get("perm_withdraw"):
+        raise HTTPException(403, "No withdrawal permission")
     w = await owned_ref(t, v)
     if w["status"] not in ("pending", "approved", "processing"):
         raise HTTPException(400, f"Withdrawal is already {w['status']}")
@@ -237,8 +254,8 @@ async def ticket_process_withdrawal(tid: str, request: Request, reference: str =
         raise HTTPException(400, "File too large (max 5MB)")
     path = await put_file("proofs", file.filename or "proof.png", data, file.content_type, user["id"])
     proof = {"path": path, "name": file.filename, "content_type": file.content_type, "by": user["username"], "at": iso()}
+    await do_complete_withdrawal(v, w, user, request, frm=w["status"], extra={"reference": ref})
     await db.tickets.update_one({"id": tid}, {"$push": {"proofs": proof}})
     await db.withdrawals.update_one({"id": w["id"]}, {"$push": {"proofs": proof}})
-    await do_complete_withdrawal(v, w, user, request, frm=w["status"], extra={"reference": ref})
     await push(tid, event(user, "withdrawal_processed", note or f"Transferred, reference {ref}", reference=ref), "agent_actioned")
     return {"ok": True}

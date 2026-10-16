@@ -58,7 +58,7 @@ function TicketCard({ t, reload }) {
           <div className="font-bold mono text-sm">{t.number}</div>
           <div className="text-xs text-neutral-400 capitalize">{t.kind}{t.ref_amount ? ` · ${inr(t.ref_amount)}` : ""} · {dt(t.created_at)}</div>
         </div>
-        <Badge status={["resolved", "closed"].includes(t.status) ? "completed" : t.status} testid={`ticket-status-${t.number}`} />
+        <Badge status={t.status} testid={`ticket-status-${t.number}`} />
       </button>
       <div className="text-[11px] text-neutral-500 mt-1">{STATUS_TEXT[t.status]}</div>
       {open && (

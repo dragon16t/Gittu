@@ -42,8 +42,8 @@ export const CountdownRing = ({ label, value, progress }) => {
           </linearGradient>
         </defs>
       </svg>
-      <div className="text-[10px] text-neutral-400 mt-[18%]" data-testid="round-status-label">{label}</div>
-      <div className="text-[clamp(20px,3.4dvh,32px)] font-extrabold leading-tight mono tracking-tight" data-testid="round-countdown-value">{value}</div>
+      <div className="relative text-[9px] text-neutral-400 leading-none" data-testid="round-status-label">{label}</div>
+      <div className="relative text-[clamp(17px,2.8dvh,26px)] font-extrabold leading-tight mono tracking-tight" data-testid="round-countdown-value">{value}</div>
     </div>
   );
 };
@@ -53,7 +53,7 @@ export const SideCircle = ({ side, multiplier, active, dim, onClick, disabled })
     onClick={onClick}
     disabled={disabled}
     data-testid={`select-${side.toLowerCase()}-button`}
-    className={`side-ring relative w-[min(32vw,17dvh)] max-w-[150px] aspect-square flex flex-col items-center justify-center ${active ? "active" : ""} ${dim ? "dim" : ""}`}
+    className={`side-ring relative w-[min(30vw,16dvh)] max-w-[140px] aspect-square flex flex-col items-center justify-center ${active ? "active" : ""} ${dim ? "dim" : ""}`}
   >
     <span className="inner-ring" />
     <span className="relative text-[clamp(22px,min(8vw,4.4dvh),40px)] font-black silver-text leading-none">{side}</span>

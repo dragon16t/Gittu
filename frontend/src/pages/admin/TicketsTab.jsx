@@ -41,7 +41,7 @@ function TicketModal({ t, verifiers, onClose, reload }) {
         <div className="flex gap-2">
           <select value={vid} onChange={(e) => setVid(e.target.value)} className="flex-1 h-9 px-3 rounded-lg bg-black border border-white/15 text-sm" data-testid="ticket-agent-select">
             <option value="">Select agent</option>
-            {verifiers.map((v) => <option key={v.id} value={v.id}>{v.display_name} {v.online ? "(online)" : "(offline)"}{v.id === t.ref_verifier_id ? " · routed agent" : ""}</option>)}
+            {verifiers.filter((v) => v.status === "active").map((v) => <option key={v.id} value={v.id}>{v.display_name} {v.online ? "(online)" : "(offline)"}{v.id === t.ref_verifier_id ? " · routed agent" : ""}</option>)}
           </select>
           <Btn primary onClick={() => run(() => api.post(`/admin/tickets/${t.id}/assign`, { verifier_id: vid }), "Ticket shared with agent")} data-testid="ticket-share-button">Share with agent</Btn>
         </div>
@@ -64,7 +64,10 @@ export default function TicketsTab() {
   const [status, setStatus] = useState("active");
   const [sel, setSel] = useState(null);
   const [verifiers, setVerifiers] = useState([]);
-  const load = () => api.get("/admin/tickets", { params: { status } }).then(({ data }) => { setRows(data); setSel((s) => s && data.find((x) => x.id === s.id)); });
+  const load = () => Promise.all([api.get("/admin/tickets", { params: { status } }), sel ? api.get("/admin/tickets") : null]).then(([r, all]) => {
+    setRows(r.data);
+    if (all) setSel((s) => s && all.data.find((x) => x.id === s.id));
+  });
   useEffect(() => { load(); }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { api.get("/admin/verifiers").then(({ data }) => setVerifiers(data)); }, []);
   return (

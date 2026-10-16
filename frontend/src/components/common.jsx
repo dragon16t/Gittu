@@ -53,7 +53,7 @@ export const Stat = ({ label, value, testid, sub }) => (
 const TONES = {
   verified: "text-emerald-400 border-emerald-500/40", completed: "text-emerald-400 border-emerald-500/40",
   won: "text-emerald-400 border-emerald-500/40", claimed: "text-emerald-400 border-emerald-500/40",
-  auto_credited: "text-emerald-400 border-emerald-500/40", active: "text-emerald-400 border-emerald-500/40",
+  auto_credited: "text-emerald-400 border-emerald-500/40", resolved: "text-emerald-400 border-emerald-500/40", closed: "text-neutral-400 border-white/20", active: "text-emerald-400 border-emerald-500/40",
   rejected: "text-red-400 border-red-500/40", lost: "text-red-400 border-red-500/40",
   suspended: "text-red-400 border-red-500/40", disabled: "text-red-400 border-red-500/40",
   inactive: "text-red-400 border-red-500/40",
