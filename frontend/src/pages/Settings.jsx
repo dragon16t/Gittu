@@ -79,7 +79,7 @@ export default function Settings() {
         <Row icon={FileText} label="Terms & Conditions" onClick={() => setPanel(panel === "terms" ? null : "terms")} testid="settings-terms" />
         {panel === "terms" && <div className="panel p-5"><TermsBody /></div>}
         <Row icon={Landmark} label="Bank / UPI details" onClick={() => setPanel(panel === "bank" ? null : "bank")} testid="settings-bank" />
-        {panel === "bank" && <BankForm onDone={() => setPanel(null)} />}
+        {panel === "bank" && <div data-section="bank"><BankForm onDone={() => setPanel(null)} /></div>}
         <Row icon={KeyRound} label="Change password" onClick={() => setPanel(panel === "pw" ? null : "pw")} testid="settings-password" />
         {panel === "pw" && <PasswordForm onDone={() => setPanel(null)} />}
         <Row icon={History} label="Transaction history" to="/wallet" testid="settings-history" />

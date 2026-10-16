@@ -4,10 +4,11 @@ import { api, inr, dt } from "@/lib/api";
 import { MobileShell, Stat, Badge, Empty } from "@/components/common";
 import { WagerProgress } from "@/components/WagerProgress";
 
-const TABS = [["", "All"], ["bet_stake", "Bets"], ["bet_win", "Wins"], ["deposit", "Deposits"], ["withdraw_reserve", "Withdrawals"],
-  ["withdraw_refund", "Refunds"], ["promotion", "Bonuses"]];
-const LABEL = { bet_stake: "Bet stake", bet_win: "Winning return", deposit: "Deposit", withdraw_reserve: "Withdrawal (reserved)",
-  withdraw_complete: "Withdrawal completed", withdraw_refund: "Withdrawal refund", manual_credit: "Admin credit",
+const TABS = [["", "All"], ["bet_stake", "Bets"], ["bet_win", "Wins"], ["deposit", "Deposits"],
+  ["withdraw_reserve,withdraw_complete,withdraw_refund", "Withdrawals"], ["withdraw_refund", "Refunds"], ["promotion", "Bonuses"],
+  ["manual_credit,manual_debit", "Adjustments"]];
+const LABEL = { bet_stake: "Bet stake", bet_win: "Winning return", deposit: "Deposit", withdraw_reserve: "Withdrawal requested (moved to reserved)",
+  withdraw_complete: "Withdrawal paid out (from reserved)", withdraw_refund: "Withdrawal refund", manual_credit: "Admin credit",
   manual_debit: "Admin debit", promotion: "Bonus" };
 
 export default function Wallet() {
@@ -41,7 +42,7 @@ export default function Wallet() {
       </div>
       <div className="flex gap-2 overflow-x-auto pb-2 admin-scroll">
         {TABS.map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} data-testid={`ledger-tab-${k || "all"}`}
+          <button key={k} onClick={() => setTab(k)} data-testid={`ledger-tab-${l.toLowerCase()}`}
             className={`shrink-0 h-9 px-4 rounded-full text-sm font-semibold ${tab === k ? "silver-btn" : "ghost-chip"}`}>{l}</button>
         ))}
       </div>
@@ -53,8 +54,11 @@ export default function Wallet() {
               <div className="text-sm font-semibold">{LABEL[r.type] || r.type}</div>
               <div className="text-[11px] text-neutral-500">{dt(r.created_at)} · {r.id.slice(0, 8)}</div>
             </div>
-            <div className={`mono font-bold ${r.amount > 0 ? "text-emerald-400" : r.amount < 0 ? "text-neutral-200" : "text-neutral-500"}`}>
-              {r.amount > 0 ? "+" : ""}{inr(r.amount || -(r.reserved_change || 0))}
+            <div className="text-right">
+              <div className={`mono font-bold ${r.amount > 0 ? "text-emerald-400" : r.amount < 0 ? "text-neutral-200" : "text-neutral-500"}`}>
+                {r.amount > 0 ? "+" : r.amount < 0 ? "−" : ""}{r.amount ? inr(Math.abs(r.amount)) : `${inr(-(r.reserved_change || 0))} paid`}
+              </div>
+              {r.balance_after != null && <div className="text-[10px] text-neutral-500 mono">Bal {inr(r.balance_after)}</div>}
             </div>
           </div>
         ))}

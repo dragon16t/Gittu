@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import "@/App.css";
 import { SessionProvider, useSession } from "@/lib/session";
@@ -21,6 +22,17 @@ import AdminPanel from "@/pages/admin/AdminPanel";
 import VerifierLogin from "@/pages/verifier/VerifierLogin";
 import VerifierDashboard from "@/pages/verifier/VerifierDashboard";
 
+function ScrollReset() {
+  const { pathname, search } = useLocation();
+  useEffect(() => {
+    const el = document.getElementById("app-scroll");
+    if (el) el.scrollTo({ top: 0 });
+    const target = new URLSearchParams(search).get("section");
+    if (target) setTimeout(() => document.querySelector(`[data-section="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 350);
+  }, [pathname, search]);
+  return null;
+}
+
 const Loading = () => (
   <div className="min-h-screen flex items-center justify-center text-neutral-500 text-sm" data-testid="loading">Loading…</div>
 );
@@ -41,8 +53,9 @@ const Portal = ({ portal }) => (
 
 export default function App() {
   return (
-    <div className="grain min-h-screen">
+    <div id="app-scroll" className="grain h-[100dvh] overflow-y-auto overflow-x-hidden overscroll-none">
       <BrowserRouter>
+        <ScrollReset />
         <Routes>
           <Route element={<Portal portal="user" />}>
             <Route path="/login" element={<Login />} />

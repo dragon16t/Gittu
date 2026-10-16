@@ -44,12 +44,12 @@ export default function Withdraw() {
         <div data-testid="withdraw-wager-warning"><WagerProgress w={w} /></div>
         {bank === null && (
           <div className="text-sm text-neutral-300 border border-white/15 rounded-xl p-3">
-            Save your UPI ID first. <Link to="/settings?bank=1" className="underline" data-testid="add-upi-link">Add UPI details</Link>
+            Save your UPI ID first. <Link to="/settings?bank=1&section=bank" className="underline" data-testid="add-upi-link">Add UPI details</Link>
           </div>
         )}
         <Field label="UPI ID" value={upi} onChange={(e) => setUpi(e.target.value)} placeholder="name@bank" testid="withdraw-upi-input" />
         <p className="text-[11px] text-neutral-500 -mt-2">
-          Must match your saved UPI ID. <Link to="/settings?bank=1" className="underline" data-testid="edit-upi-link">Edit destination</Link>
+          Must match your saved UPI ID. <Link to="/settings?bank=1&section=bank" className="underline" data-testid="edit-upi-link">Edit destination</Link>
         </p>
         <Field label={`Amount (min ₹${min})`} prefix="₹" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} testid="withdraw-amount-input" />
         <SilverButton onClick={submit} disabled={busy || !amount || !upi} data-testid="submit-withdrawal-button">REQUEST WITHDRAWAL</SilverButton>

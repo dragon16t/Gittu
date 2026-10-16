@@ -34,8 +34,11 @@
 
 @layer base {
     * { @apply border-border; }
-    html { font-size: 15px; }
-    html, body { background: #000; }
+    html { font-size: 15px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    html, body { background: #000; height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; }
+    #root { height: 100%; }
+    button, a, input, select, textarea { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    @media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } }
     body {
         @apply text-foreground;
         font-family: "Poppins", sans-serif;

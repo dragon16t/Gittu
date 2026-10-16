@@ -177,7 +177,7 @@ async def wallet(user=Depends(current_user)):
 async def wallet_ledger(type: str = "", user=Depends(current_user)):
     q = {"user_id": user["id"]}
     if type:
-        q["type"] = type
+        q["type"] = {"$in": type.split(",")}
     return await db.ledger.find(q, {"_id": 0, "key": 0}).sort("created_at", -1).to_list(300)
 
 
