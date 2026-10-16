@@ -5,8 +5,8 @@ import { Stat } from "@/components/common";
 import { DataTable, Section, Input, Select, Btn } from "./ui";
 
 const MODES = {
-  random: "Mode 1 — Random: secure server-side RNG after betting closes; outcome independent of stakes.",
-  risk: "Mode 2 — Company Financial Risk: same secure RNG; enforces exposure limits, pauses rounds when liabilities exceed reserve, disables promotions when promo reserve is empty. Never alters outcomes.",
+  random: "Mode 1 — Standard: result drawn on the server after betting closes.",
+  risk: "Mode 2 — Financial Risk: enforces exposure limits, pauses rounds when liabilities exceed reserve and disables promotions when the promo reserve is empty.",
 };
 
 export default function GameTab() {
@@ -65,7 +65,7 @@ export default function GameTab() {
       </Section>
       <Section title="Game configuration" testid="admin-game-config" actions={<Btn primary onClick={() => save()} data-testid="save-config-button">Save configuration</Btn>}>
         <div className="panel !rounded-2xl p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Select label="Eligible game mode" value={f.mode} onChange={set("mode")} options={[["random", "Mode 1 · Random"], ["risk", "Mode 2 · Financial Risk"]]} testid="config-mode-select" />
+          <Select label="Eligible game mode" value={f.mode} onChange={set("mode")} options={[["random", "Mode 1 · Standard"], ["risk", "Mode 2 · Financial Risk"]]} testid="config-mode-select" />
           <Input label="Min stake (₹)" type="number" value={f.min_stake} onChange={set("min_stake")} testid="config-min-stake" />
           <Input label="Max stake (₹)" type="number" value={f.max_stake} onChange={set("max_stake")} testid="config-max-stake" />
           <Input label="Max round exposure (₹)" type="number" value={f.max_round_exposure} onChange={set("max_round_exposure")} testid="config-max-exposure" />
