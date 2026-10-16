@@ -23,7 +23,6 @@ class ConfigIn(BaseModel):
     min_stake: Optional[int] = None
     max_stake: Optional[int] = None
     paused: Optional[bool] = None
-    practice_enabled: Optional[bool] = None
     max_round_exposure: Optional[int] = None
     company_reserve: Optional[int] = None
     commission_bps: Optional[int] = None
@@ -475,11 +474,6 @@ async def admin_reject_wd(wid: str, request: Request, body: RejectIn = None, adm
 
 
 # ---------- logs / reports ----------
-@router.get("/practice")
-async def practice_log(admin=Depends(current_admin)):
-    return await db.practice_previews.find({}, P).sort("created_at", -1).to_list(300)
-
-
 @router.get("/audit")
 async def audit_log(action: str = "", admin=Depends(current_admin)):
     q = {"action": {"$regex": re.escape(action)}} if action else {}

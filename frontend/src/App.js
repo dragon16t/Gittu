@@ -8,7 +8,6 @@ import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Forgot from "@/pages/auth/Forgot";
 import Game from "@/pages/Game";
-import Practice from "@/pages/Practice";
 import Wallet from "@/pages/Wallet";
 import Deposit from "@/pages/Deposit";
 import Withdraw from "@/pages/Withdraw";
@@ -63,7 +62,6 @@ export default function App() {
             <Route path="/forgot" element={<Forgot />} />
             <Route element={<Guard login="/login" />}>
               <Route path="/" element={<Game />} />
-              <Route path="/practice" element={<Practice />} />
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/deposit" element={<Deposit />} />
               <Route path="/withdraw" element={<Withdraw />} />

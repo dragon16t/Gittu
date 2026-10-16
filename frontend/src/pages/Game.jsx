@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Mail, Gift, Wallet as WalletIcon, Gamepad2, Headset, Trophy } from "lucide-react";
+import { Mail, Gift, Wallet as WalletIcon, Headset, Trophy } from "lucide-react";
 import { api, errMsg, inr, newKey, toPaise } from "@/lib/api";
 import { TopBar, CountdownRing, SideCircle, StakePicker, ResultStage, RecentResults } from "@/components/game/GameParts";
 import { useMusic, useRevealAnimation } from "@/components/game/hooks";
@@ -131,7 +131,6 @@ export default function Game() {
             Refer & Earn ₹300
           </Link>
           <div className="flex items-center gap-1.5">
-            <IconLink to="/practice" icon={Gamepad2} label="Practice" testid="nav-practice" />
             <IconLink to="/messages" icon={Mail} label="Messages" testid="nav-messages" badge={coupons} />
             <IconLink to="/support" icon={Headset} label="Support" testid="nav-support" />
             <IconLink to="/wallet" icon={WalletIcon} label="Wallet" testid="nav-wallet" />

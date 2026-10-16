@@ -1,5 +1,4 @@
 import re
-import secrets
 
 from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from pydantic import BaseModel
@@ -77,8 +76,7 @@ async def game_state(user=Depends(current_user)):
             "recent": [r["result"] for r in recent], "my_bets": my, "last_round_bets": last_bets,
             "balance": w["balance"] if w else 0, "paused": cfg["paused"],
             "config": {"min_stake": cfg["min_stake"], "max_stake": cfg["max_stake"], "multiplier_bps": cfg["multiplier_bps"],
-                       "mode": cfg["mode"], "round_seconds": ROUND_SECONDS, "reveal_seconds": REVEAL_SECONDS,
-                       "practice_enabled": cfg["practice_enabled"]}}
+                       "mode": cfg["mode"], "round_seconds": ROUND_SECONDS, "reveal_seconds": REVEAL_SECONDS}}
 
 
 @router.post("/game/bet")
@@ -129,26 +127,6 @@ async def round_history(user=Depends(current_user)):
     rows = await db.rounds.find({"status": "settled"}, {"_id": 0, "number": 1, "result": 1, "settled_at": 1, "id": 1,
                                                         "result_hash": 1, "salt": 1, "dice": 1}).sort("number", -1).to_list(100)
     return rows
-
-
-# ---------- practice ----------
-@router.post("/practice/generate")
-async def practice_generate(user=Depends(current_user)):
-    cfg = await get_config()
-    if not cfg["practice_enabled"]:
-        raise HTTPException(400, "Practice mode is currently disabled")
-    await check_rate(f"practice:{user['id']}", 30, 60)
-    await hit_rate(f"practice:{user['id']}")
-    results = ["ODD" if (secrets.randbelow(6) + 1) % 2 else "EVEN" for _ in range(10)]
-    doc = {"id": f"PRV-{secrets.token_hex(4).upper()}", "user_id": user["id"], "username": user["username"],
-           "results": results, "status": "generated", "practice": True, "created_at": iso()}
-    await db.practice_previews.insert_one(dict(doc))
-    return doc
-
-
-@router.get("/practice/history")
-async def practice_history(user=Depends(current_user)):
-    return await db.practice_previews.find({"user_id": user["id"]}, P).sort("created_at", -1).to_list(50)
 
 
 # ---------- wallet ----------

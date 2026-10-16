@@ -2,20 +2,6 @@ import { useEffect, useState } from "react";
 import { api, dt } from "@/lib/api";
 import { DataTable, Section, Btn } from "./ui";
 
-export function PracticeTab() {
-  const [rows, setRows] = useState([]);
-  useEffect(() => { api.get("/admin/practice").then(({ data }) => setRows(data)); }, []);
-  return (
-    <Section title="Practice preview log" testid="admin-practice-log">
-      <DataTable rows={rows} cols={[
-        { label: "Preview ID", render: (r) => <span className="mono text-xs">{r.id}</span> }, { label: "Username", key: "username" },
-        { label: "Generated", render: (r) => dt(r.created_at) },
-        { label: "Ten outcomes", render: (r) => <span className="mono text-xs">{r.results.join(" | ")}</span> }, { label: "Status", key: "status" },
-      ]} minW={900} />
-    </Section>
-  );
-}
-
 export function AuditTab() {
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState("");

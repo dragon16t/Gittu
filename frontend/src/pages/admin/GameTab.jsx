@@ -75,13 +75,11 @@ export default function GameTab() {
           <Select label="Commission basis (agreement)" value={f.commission_basis} onChange={set("commission_basis")} testid="config-commission-basis"
             options={[["deposits", "Verified deposits"], ["withdrawals", "Completed withdrawals"], ["both", "Both"]]} />
           <div className="flex items-center gap-3 text-sm">
-            <Btn onClick={() => save({ practice_enabled: !cfg.practice_enabled })} data-testid="toggle-practice-button">Practice: {cfg.practice_enabled ? "ON" : "OFF"}</Btn>
             <Btn onClick={() => save({ promotions_enabled: !cfg.promotions_enabled })} data-testid="toggle-promotions-button">Promotions: {cfg.promotions_enabled ? "ON" : "OFF"}</Btn>
           </div>
         </div>
         <div className="panel !rounded-2xl p-5 text-sm text-neutral-300 space-y-2" data-testid="mode-rules">
           <div>{MODES.random}</div><div>{MODES.risk}</div>
-          <div>Mode 3 — Free Practice: users generate ten independent practice outcomes; no wallet impact and no link to live results.</div>
           <div className="text-neutral-500">Payout: winning stake × {cfg.multiplier_bps / 100} total return. Round 30s + 3s reveal.</div>
         </div>
       </Section>
