@@ -31,6 +31,14 @@ Later additions:
 - T&C on sign-up (enforced by backend) and login (enforced in the UI)
 - Support tickets with timeline and proofs
 
+- Iteration 3–4:
+  - Wagering progress bar (Wallet and Withdraw pages)
+  - Agent Workload live admin tab
+  - Live win feed ticker on the game screen
+  - Ticket chat alerts (toast polling for users and verifiers)
+  - Compact single-screen game layout with the result shown as a closed capsule
+  - Smaller fonts (15px base) and a clean BLACKBA-only login page
+
 ## Backlog
 - P1: Styled modals instead of window.prompt/confirm in the verifier portal
 - P1: Proper date picker in reports

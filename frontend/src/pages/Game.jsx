@@ -91,7 +91,7 @@ export default function Game() {
   const remaining = round?.status === "betting" ? (new Date(round.closes_at).getTime() - serverNow) / 1000 : 0;
   const bettingOpen = round?.status === "betting" && remaining > 0;
   const mult = ((state?.config?.multiplier_bps || 195) / 100).toFixed(2);
-  const statusLabel = state?.paused ? "Paused" : bettingOpen ? "Next Round In" : round ? "Revealing" : "Starting";
+  const statusLabel = state?.paused ? "Paused" : bettingOpen ? "Next round" : round ? "Revealing" : "Starting";
 
   const placeBet = async () => {
     if (!side) return toast.error("Select ODD or EVEN");
@@ -139,13 +139,10 @@ export default function Game() {
               progress={bettingOpen ? remaining / (state?.config?.round_seconds || 30) : 0} />
             <span className={`text-[10px] justify-self-end ${bettingOpen ? "text-emerald-400" : "text-neutral-500"}`} data-testid="round-status">{bettingOpen ? "Betting open" : "Betting closed"}</span>
           </div>
-          <div className="flex items-center justify-around relative mt-[clamp(2px,0.8dvh,10px)] py-[8px]">
+          <div className="flex items-center justify-around relative mt-[clamp(2px,0.8dvh,10px)] py-[10px]">
             <SideCircle side="ODD" multiplier={mult} active={side === "ODD"} dim={side === "EVEN"} onClick={() => setSide("ODD")} />
             <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-white/30 via-white/10 to-transparent" />
             <SideCircle side="EVEN" multiplier={mult} active={side === "EVEN"} dim={side === "ODD"} onClick={() => setSide("EVEN")} />
-          </div>
-          <div className="flex justify-around mt-1 text-[9px] text-neutral-500">
-            <span>1 · 3 · 5</span><span>2 · 4 · 6</span>
           </div>
         </div>
         <ResultStage label={reveal.label} final={reveal.final} />

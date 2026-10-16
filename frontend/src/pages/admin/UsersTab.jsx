@@ -50,7 +50,7 @@ function UserDetail({ id, onBack }) {
       <div className="flex flex-wrap items-center gap-3 justify-between">
         <div>
           <Btn onClick={onBack} data-testid="user-detail-back">← Users</Btn>
-          <h2 className="text-2xl font-black mt-3">{u.username} <Badge status={u.status} testid="user-detail-status" /></h2>
+          <h2 className="text-xl font-black mt-3">{u.username} <Badge status={u.status} testid="user-detail-status" /></h2>
           <div className="text-xs mono text-neutral-500">{u.id}</div>
         </div>
         <div className="flex gap-2">

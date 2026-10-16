@@ -64,7 +64,7 @@ export default function Deposit() {
         <div className="panel p-5 space-y-4 rise" data-testid="deposit-assigned">
           <div className="text-center">
             <div className="text-neutral-400 text-sm">Pay exactly</div>
-            <div className="text-3xl font-black silver-text" data-testid="deposit-assigned-amount">{inr(dep.amount)}</div>
+            <div className="text-2xl font-black silver-text" data-testid="deposit-assigned-amount">{inr(dep.amount)}</div>
           </div>
           <div className="mx-auto w-56 h-56 rounded-2xl bg-white flex items-center justify-center overflow-hidden" data-testid="deposit-qr">
             {qr ? <img src={qr} alt="UPI QR" className="w-full h-full object-contain" /> : <span className="text-neutral-500 text-sm px-6 text-center">Pay using the UPI ID below</span>}

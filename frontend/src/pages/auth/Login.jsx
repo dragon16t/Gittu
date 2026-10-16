@@ -29,7 +29,7 @@ export default function Login() {
     <AuthCard
       testid="login-page"
       title="Login"
-      subtitle="30-second rounds · 1.95× total return · High risk, 18+"
+      subtitle=""
       footer={<>New here? <TextLink to="/register" testid="signup-link">Create an account</TextLink></>}
     >
       <form onSubmit={submit} className="space-y-4">

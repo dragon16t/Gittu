@@ -24,7 +24,7 @@ export default function Wallet() {
     <MobileShell title="Wallet" testid="wallet-page">
       <div className="panel p-6 mb-4 rise">
         <div className="text-neutral-400 text-sm">Available balance</div>
-        <div className="text-4xl font-black silver-text mt-1" data-testid="wallet-balance">{inr(w?.balance)}</div>
+        <div className="text-3xl font-black silver-text mt-1" data-testid="wallet-balance">{inr(w?.balance)}</div>
         <WagerProgress w={w} />
         <div className="flex gap-3 mt-5">
           <Link to="/deposit" className="silver-btn rounded-full h-11 flex-1 flex items-center justify-center font-bold" data-testid="wallet-deposit-link">Deposit</Link>

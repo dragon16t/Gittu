@@ -124,7 +124,7 @@ export default function VerifierDashboard() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="text-xs text-neutral-500 uppercase tracking-[0.2em]">Payment verifier</div>
-          <h1 className="text-3xl font-black silver-text">{d.verifier.display_name}</h1>
+          <h1 className="text-2xl font-black silver-text">{d.verifier.display_name}</h1>
           <div className="text-xs text-neutral-500 mono">{d.verifier.username} · commission {d.verifier.commission_bps / 100}%</div>
         </div>
         <div className="flex items-center gap-4">

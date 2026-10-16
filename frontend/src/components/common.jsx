@@ -4,16 +4,16 @@ import { ChevronLeft } from "lucide-react";
 export const MobileShell = ({ title, children, testid, back = "/" }) => {
   const nav = useNavigate();
   return (
-    <div className="relative z-10 mx-auto max-w-[480px] min-h-screen px-5 pb-16 pt-6" data-testid={testid}>
+    <div className="relative z-10 mx-auto max-w-[480px] min-h-screen px-4 pb-14 pt-5 text-sm" data-testid={testid}>
       <div className="flex items-center gap-3 mb-6 rise">
         <button
           onClick={() => nav(back)}
-          className="h-11 w-11 rounded-full ghost-chip flex items-center justify-center"
+          className="h-9 w-9 rounded-full ghost-chip flex items-center justify-center"
           data-testid="back-button"
         >
           <ChevronLeft size={20} />
         </button>
-        <h1 className="text-xl font-bold tracking-tight silver-text">{title}</h1>
+        <h1 className="text-lg font-bold tracking-tight silver-text">{title}</h1>
       </div>
       {children}
     </div>
@@ -22,16 +22,16 @@ export const MobileShell = ({ title, children, testid, back = "/" }) => {
 
 export const Field = ({ label, prefix, testid, className = "", ...props }) => (
   <label className={`block ${className}`}>
-    {label && <span className="block text-sm text-neutral-400 mb-2">{label}</span>}
-    <div className="field flex items-center gap-3 px-4 h-14">
+    {label && <span className="block text-xs text-neutral-400 mb-1.5">{label}</span>}
+    <div className="field !rounded-xl flex items-center gap-3 px-3.5 h-11">
       {prefix && <span className="text-neutral-400 text-lg">{prefix}</span>}
-      <input data-testid={testid} className="text-base font-medium placeholder:text-neutral-600" {...props} />
+      <input data-testid={testid} className="text-sm font-medium placeholder:text-neutral-600" {...props} />
     </div>
   </label>
 );
 
 export const SilverButton = ({ children, className = "", ...props }) => (
-  <button className={`silver-btn rounded-full h-14 w-full font-extrabold tracking-wide text-lg ${className}`} {...props}>
+  <button className={`silver-btn rounded-full h-11 w-full font-extrabold tracking-wide text-[15px] ${className}`} {...props}>
     {children}
   </button>
 );
@@ -43,9 +43,9 @@ export const GhostButton = ({ children, className = "", ...props }) => (
 );
 
 export const Stat = ({ label, value, testid, sub }) => (
-  <div className="panel !rounded-2xl p-4" data-testid={testid}>
+  <div className="panel !rounded-2xl p-3.5" data-testid={testid}>
     <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">{label}</div>
-    <div className="mt-1 text-lg font-bold mono text-neutral-100">{value}</div>
+    <div className="mt-1 text-[15px] font-bold mono text-neutral-100">{value}</div>
     {sub && <div className="text-xs text-neutral-500 mt-1">{sub}</div>}
   </div>
 );
@@ -73,14 +73,12 @@ export const Empty = ({ children = "Nothing here yet" }) => (
 
 export const AuthCard = ({ title, subtitle, children, footer, testid }) => (
   <div className="relative z-10 min-h-screen flex items-center justify-center px-5 py-10" data-testid={testid}>
-    <div className="w-full max-w-[420px] rise">
-      <div className="text-center mb-8">
-        <div className="text-[44px] leading-none font-black silver-text tracking-[0.12em]">BLACKBA</div>
-        <div className="text-[11px] tracking-[0.4em] text-neutral-500 mt-2">ODD · EVEN</div>
-        <div className="mt-3 text-neutral-400 text-sm">{subtitle}</div>
+    <div className="w-full max-w-[380px] rise">
+      <div className="text-center mb-6">
+        <div className="text-[30px] leading-none font-black silver-text tracking-[0.14em]">BLACKBA</div>
       </div>
-      <div className="panel p-6">
-        <h2 className="text-lg font-bold mb-5">{title}</h2>
+      <div className="panel !rounded-3xl p-5">
+        <h2 className="text-base font-bold mb-4">{title}</h2>
         {children}
       </div>
       {footer && <div className="mt-6 text-center text-sm text-neutral-400">{footer}</div>}

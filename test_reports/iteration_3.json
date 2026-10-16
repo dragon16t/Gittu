@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 3: tested game one-screen layout (7 viewports), wager progress bar (Wallet/Withdraw + /api/wallet), Agent Workload admin tab + /api/admin/workload, live win feed + /api/game/state winners, and ticket alerts (user + verifier poll, toasts). New backend suite 12/12 pass; iter2 (14/14) and iter1 e2e (24/24) regressions pass. One real bug: wallets created before this feature (no wager_required field) show 0% progress forever even after betting (11 of 14 wallets with pending wagering, including player1).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/wallet", "issue": "Old wallets have wager_remaining but no wager_required. The code computes req = max(wager_required, rem), so req always equals rem and wager_done stays 0 after bets. Seen on player1: remaining 65000 and wager_required missing, so the UI shows '₹0.00 / ₹650.00 · 0%' even after a bet. 11 wallets in the DB are affected."},
+      {"endpoint": "GET /api/game/state winners", "issue": "Name masking n[:2]+'***'+n[-1:] shows every character of a 3-letter username (e.g. 'abc' -> 'ab***c'). Also runs a db.bets status=won sort by settled_at on every 1s poll for every user. Add an index on {status:1, settled_at:-1} or cache the list."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Game page at 320x568 (iPhone SE 1st gen)", "issue": "main overflows by 20px (scrollHeight 342 vs clientHeight 322), so the bottom of Recent Results is clipped. The header balance is also cut short ('₹1,3...'). All other tested viewports have no overflow: 360x640, 375x667, 390x844, 412x915, 768x1024, 1920x800.", "selector": "[data-testid=game-page] main", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Wager progress for legacy users", "issue": "Same root cause as the /api/wallet item: the progress bar stays at 0% for old wallets.", "affected_selectors": ["[data-testid=wager-progress-text]"]}
+    ],
+    "design_issues": [
+      {"screen": "Game board countdown notch", "issues": ["The 'Next Round In' label (e.g. 63px wide inside a 72px circle at 1920x800, 45px inside 58px at 360x640) sits on the curved edge and touches or crosses the ring stroke. Shorten it to 'Next round' or shrink the font."]},
+      {"screen": "Game page at 390x844 and taller", "issues": ["justify-evenly leaves large empty gaps between the board, result stage and recent results. Acceptable, but the space could go to bigger ODD/EVEN circles."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter3_features.py", "/app/backend/tests/setup_wager_user.py", "/app/test_reports/pytest/pytest_iter3.xml"],
+  "action_items": [
+    "Migrate legacy wallets on startup: set wager_required = wager_remaining where wager_required is missing (or less than remaining) and wager_remaining > 0, so wager_done can grow when users bet",
+    "Optional: fix the 320px-height overflow on the game page (shrink the result stage clamp min or hide the sparkles)",
+    "Optional: make the countdown label fit inside the notch",
+    "Optional: stronger name masking for short usernames; add a winners index or cache"
+  ],
+  "critical_code_review_comments": [
+    "routes_user.wallet: req = max(wager_required, rem) hides the missing-field case; add a data migration rather than relying on max()",
+    "AlertPoller marks every unread notification (coupons, deposits, etc.) read as soon as it shows the toast. Check that the Messages page does not depend on 'read' for unread badges",
+    "Sonner toasts disappear after about 4s and the poll runs every 6s. The DB confirmed both toasts were delivered (read=true), but a user who looks away misses them. Consider a longer duration for ticket toasts",
+    "Workload: open withdrawals stay assigned to disabled agents (pv1004 disabled with 1 open withdrawal of ₹300). Consider flagging these or reassigning them automatically"
+  ],
+  "updated_files": ["/app/backend/tests/test_iter3_features.py", "/app/backend/tests/setup_wager_user.py"],
+  "success_rate": {"backend": "100% (50/50 across 3 suites)", "frontend": "95% (all requested flows work; legacy wager display bug)"},
+  "test_credentials": "From /app/memory/test_credentials.md (admin+TOTP, player1, pv1001). Test user created: test_wgcdca7f / Passw0rd! (₹200 deposit, ₹50 wagered)",
+  "seed_data_creation": "test_w*/test_wg* users, TEST_ tickets (TCK-36F55C resolved), small bets by player1",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Clear db.rate_events, then run: cd /app/backend && REACT_APP_BACKEND_URL=<url> pytest tests/test_iter3_features.py -n 0. Admin alerts are in GET /api/admin/dashboard 'alerts' (there is no /admin/alerts). Toasts use [data-sonner-toast]; poll every 500ms because toasts expire before the next 6s poll. In playwright scripts, use requests plus inline hmac TOTP to drive admin/user actions while a UI page is open.",
+  "rca of the issue": "Wager progress 0% for old users: promotions.add_wagering only started incrementing wager_required in this iteration. Existing wallets have wager_remaining but no wager_required. The /wallet calculation req = max(0, rem) means done = req - rem = 0 forever, and consume_wagering only lowers remaining. Reproduce: GET /api/wallet as player1, place a bet, wager_done stays 0. Fix: one-time migration db.wallets.update_many({wager_remaining:{$gt:0}, wager_required:{$exists:false}}, [{$set:{wager_required:'$wager_remaining'}}])."
+}

@@ -71,6 +71,8 @@ async def create_indexes():
     await db.rounds.create_index("id", unique=True)
     await db.bets.create_index([("user_id", 1), ("client_key", 1)], unique=True)
     await db.bets.create_index("round_id")
+    await db.bets.create_index([("status", 1), ("settled_at", -1)])
+    await db.wallets.update_many({"wager_required": {"$exists": False}}, [{"$set": {"wager_required": {"$ifNull": ["$wager_remaining", 0]}}}])
     await db.settlements.create_index("round_id", unique=True)
     await db.deposits.create_index("id", unique=True)
     await db.deposits.create_index("utr", unique=True, partialFilterExpression={"utr": {"$type": "string"}})

@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 export const DataTable = ({ cols, rows, testid, empty = "No records", minW = 720 }) => (
   <div className="panel !rounded-2xl p-4 overflow-x-auto admin-scroll" data-testid={testid}>
-    <table className="w-full text-sm text-left" style={{ minWidth: minW }}>
+    <table className="w-full text-[13px] text-left" style={{ minWidth: minW }}>
       <thead>
         <tr className="text-[11px] uppercase tracking-wider text-neutral-500">
           {cols.map((c) => <th key={c.label} className="pb-2 pr-3 font-medium">{c.label}</th>)}
@@ -23,7 +23,7 @@ export const DataTable = ({ cols, rows, testid, empty = "No records", minW = 720
 export const Section = ({ title, actions, children, testid }) => (
   <section className="space-y-3" data-testid={testid}>
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-lg font-bold">{title}</h2>
+      <h2 className="text-base font-bold">{title}</h2>
       <div className="flex flex-wrap gap-2">{actions}</div>
     </div>
     {children}

@@ -33,9 +33,8 @@ export const TermsCheckbox = ({ checked, onChange, testid }) => {
         <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} data-testid={testid}
           className="mt-0.5 h-4 w-4 accent-white shrink-0" />
         <span>
-          I am 18+ and I accept the{" "}
-          <button type="button" onClick={() => setOpen(true)} className="underline text-white" data-testid={`${testid}-open`}>Terms & Conditions</button>.
-          I understand this is a high-risk money game, there are no refunds and the platform is not responsible for my losses.
+          I accept the{" "}
+          <button type="button" onClick={() => setOpen(true)} className="underline text-white" data-testid={`${testid}-open`}>Terms & Conditions</button>
         </span>
       </label>
       <Dialog open={open} onOpenChange={setOpen}>

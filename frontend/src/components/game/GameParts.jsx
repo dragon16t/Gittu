@@ -53,7 +53,7 @@ export const SideCircle = ({ side, multiplier, active, dim, onClick, disabled })
     onClick={onClick}
     disabled={disabled}
     data-testid={`select-${side.toLowerCase()}-button`}
-    className={`side-ring relative w-[min(27vw,14dvh)] max-w-[130px] aspect-square flex flex-col items-center justify-center ${active ? "active" : ""} ${dim ? "dim" : ""}`}
+    className={`side-ring relative w-[min(28vw,15dvh)] max-w-[136px] aspect-square flex flex-col items-center justify-center ${active ? "active" : ""} ${dim ? "dim" : ""}`}
   >
     <span className="inner-ring" />
     <span className="relative text-[clamp(17px,min(7vw,3.6dvh),34px)] font-black silver-text leading-none">{side}</span>
@@ -91,15 +91,13 @@ export const StakePicker = ({ amount, setAmount }) => (
 
 const SPARKS = [[14, 22], [26, 45], [8, 70], [20, 82], [80, 18], [86, 50], [74, 62], [92, 74], [60, 12], [36, 10]];
 export const ResultStage = ({ label, final, practice }) => (
-  <div className="panel shrink-0 relative overflow-hidden h-[clamp(70px,12dvh,160px)] flex items-end justify-center" data-testid="result-stage">
+  <div className="panel shrink-0 relative overflow-hidden h-[clamp(76px,12.5dvh,150px)] flex items-center justify-center px-4" data-testid="result-stage">
     {SPARKS.map(([x, y], i) => (
-      <span key={i} className="sparkle" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${i * 0.3}s`, width: i % 3 ? 6 : 9, height: i % 3 ? 6 : 9 }} />
+      <span key={i} className="sparkle" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${i * 0.3}s`, width: i % 3 ? 5 : 7, height: i % 3 ? 5 : 7 }} />
     ))}
-    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[92%] h-[22%] rounded-[50%] border border-white/10" />
-    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[58%] h-[16%] platform" />
-    <div className="dome relative w-[58%] h-[84%] mb-[7%] flex flex-col items-center justify-center">
-      <div className="text-[clamp(7px,1.1dvh,10px)] tracking-[0.2em] text-neutral-400">{practice ? "PRACTICE" : "RESULT"}</div>
-      <div className={`text-[clamp(20px,min(10vw,4.8dvh),52px)] font-black silver-text leading-none ${final ? "result-glow" : ""}`} data-testid="result-label">
+    <div className={`capsule relative w-[62%] h-[74%] flex flex-col items-center justify-center ${final ? "capsule-final" : ""}`}>
+      <div className="text-[clamp(7px,1.1dvh,10px)] tracking-[0.25em] text-neutral-400 leading-none">{practice ? "PRACTICE" : "RESULT"}</div>
+      <div className={`text-[clamp(20px,min(9vw,4.4dvh),46px)] font-black silver-text leading-none mt-1 ${final ? "result-glow" : ""}`} data-testid="result-label">
         {label || "—"}
       </div>
     </div>

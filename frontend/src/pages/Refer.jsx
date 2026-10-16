@@ -18,14 +18,14 @@ export default function Refer() {
       <div className="panel p-6 text-center rise relative overflow-hidden">
         <div className="absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
         <div className="text-neutral-400 text-sm">Earn per friend</div>
-        <div className="text-5xl font-black silver-text mt-1">{inr(d?.rules?.bonus)}</div>
+        <div className="text-3xl font-black silver-text mt-1">{inr(d?.rules?.bonus)}</div>
         <p className="text-xs text-neutral-400 mt-3 leading-relaxed">
           Your friend signs up with your code and makes a first verified deposit of {inr(d?.rules?.min_deposit)} or more.
           You get a {inr(d?.rules?.bonus)} coupon with a {d?.rules?.wager}× wagering requirement.
         </p>
         <button onClick={() => { navigator.clipboard?.writeText(d.code); toast.success("Code copied"); }}
           className="field mt-5 w-full h-16 flex items-center justify-center gap-3" data-testid="referral-code">
-          <span className="mono text-2xl tracking-[0.3em] font-bold">{d?.code}</span><Copy size={16} />
+          <span className="mono text-lg tracking-[0.3em] font-bold">{d?.code}</span><Copy size={16} />
         </button>
         <SilverButton className="mt-4 flex items-center justify-center gap-2" onClick={share} data-testid="share-referral-button">
           <Share2 size={18} /> SHARE INVITE

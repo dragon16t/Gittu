@@ -72,7 +72,7 @@ async def game_state(user=Depends(current_user)):
     wins = await db.bets.find({"status": "won"}, {"_id": 0, "username": 1, "payout": 1, "round_number": 1, "side": 1, "id": 1}).sort("settled_at", -1).to_list(12)
     for b in wins:
         n = b.pop("username")
-        b["name"] = n[:2] + "***" + n[-1:]
+        b["name"] = (n[:2] + "***" + n[-1:]) if len(n) > 4 else (n[0] + "***")
     return {"server_time": iso(), "winners": wins, "round": public_round(cur), "last_round": public_round(last),
             "recent": [r["result"] for r in recent], "my_bets": my, "last_round_bets": last_bets,
             "balance": w["balance"] if w else 0, "paused": cfg["paused"],
