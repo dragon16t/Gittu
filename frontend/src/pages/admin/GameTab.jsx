@@ -6,7 +6,8 @@ import { DataTable, Section, Input, Select, Btn } from "./ui";
 
 const MODES = {
   random: "Mode 1 — Standard: result drawn on the server after betting closes.",
-  minority: "Mode 2 — Minority Wins: the side with the smaller total stake wins the round (equal stakes fall back to a standard draw). A 'Minority Wins' banner is shown to players while this mode is active.",
+  minority: "Mode 2 — Minority Wins: the side with the smaller total stake wins the round (equal stakes fall back to a standard draw).",
+  fair: "Mode 3 — Fair Proof: results for the next 10 rounds are pre-generated and their SHA-256 hashes are published to players in advance. After each round the dice + salt are revealed so anyone can verify.",
   risk: "Mode · Financial Risk: enforces exposure limits, pauses rounds when liabilities exceed reserve and disables promotions when the promo reserve is empty.",
 };
 
@@ -66,7 +67,7 @@ export default function GameTab() {
       </Section>
       <Section title="Game configuration" testid="admin-game-config" actions={<Btn primary onClick={() => save()} data-testid="save-config-button">Save configuration</Btn>}>
         <div className="panel !rounded-2xl p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Select label="Eligible game mode" value={f.mode} onChange={set("mode")} options={[["random", "Mode 1 · Standard"], ["minority", "Mode 2 · Minority Wins"], ["risk", "Financial Risk"]]} testid="config-mode-select" />
+          <Select label="Eligible game mode" value={f.mode} onChange={set("mode")} options={[["random", "Mode 1 · Standard"], ["minority", "Mode 2 · Minority Wins"], ["fair", "Mode 3 · Fair Proof"], ["risk", "Financial Risk"]]} testid="config-mode-select" />
           <Input label="Min stake (₹)" type="number" value={f.min_stake} onChange={set("min_stake")} testid="config-min-stake" />
           <Input label="Max stake (₹)" type="number" value={f.max_stake} onChange={set("max_stake")} testid="config-max-stake" />
           <Input label="Max round exposure (₹)" type="number" value={f.max_round_exposure} onChange={set("max_round_exposure")} testid="config-max-exposure" />
@@ -80,7 +81,7 @@ export default function GameTab() {
           </div>
         </div>
         <div className="panel !rounded-2xl p-5 text-sm text-neutral-300 space-y-2" data-testid="mode-rules">
-          <div>{MODES.random}</div><div className="text-amber-200">{MODES.minority}</div><div>{MODES.risk}</div>
+          <div>{MODES.random}</div><div className="text-amber-200">{MODES.minority}</div><div className="text-emerald-200">{MODES.fair}</div><div>{MODES.risk}</div>
           <div className="text-neutral-500">Payout: winning stake × {cfg.multiplier_bps / 100} total return. Round 30s + 3s reveal.</div>
         </div>
       </Section>

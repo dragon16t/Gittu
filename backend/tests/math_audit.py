@@ -1,5 +1,5 @@
 import requests, uuid, pyotp, time, concurrent.futures as cf
-B="https://odd-even-vault.preview.emergentagent.com/api"; H={"Origin":B[:-4]}
+B="https://odd-even-royale.preview.emergentagent.com/api"; H={"Origin":B[:-4]}
 def S(): s=requests.Session(); s.headers.update(H); return s
 a=S(); r=a.post(B+"/admin/auth/login",json={"username":"admin","password":"Admin@8CwWbJV7AhEE"}).json()
 a.post(B+"/admin/auth/mfa",json={"mfa_token":r["mfa_token"],"code":pyotp.TOTP("JBSWY3DPEHPK3PXPODDEVENADMIN234A").now()})

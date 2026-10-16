@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Mail, Gift, Wallet as WalletIcon, Headset, Trophy, AlertTriangle } from "lucide-react";
+import { Mail, Gift, Wallet as WalletIcon, Headset, Trophy, ShieldCheck } from "lucide-react";
 import { api, errMsg, inr, newKey, toPaise } from "@/lib/api";
 import { TopBar, CountdownRing, SideCircle, StakePicker, ResultStage, RecentResults } from "@/components/game/GameParts";
 import { useMusic, useRevealAnimation } from "@/components/game/hooks";
@@ -131,6 +131,7 @@ export default function Game() {
             Refer & Earn ₹300
           </Link>
           <div className="flex items-center gap-1.5">
+            {state?.config?.mode === "fair" && <IconLink to="/fair" icon={ShieldCheck} label="Fair Proof" testid="nav-fair-proof" />}
             <IconLink to="/messages" icon={Mail} label="Messages" testid="nav-messages" badge={coupons} />
             <IconLink to="/support" icon={Headset} label="Support" testid="nav-support" />
             <IconLink to="/wallet" icon={WalletIcon} label="Wallet" testid="nav-wallet" />
@@ -140,14 +141,6 @@ export default function Game() {
 
       <Confetti burstKey={burst} />
       <WinTicker winners={state?.winners || []} />
-      {state?.config?.minority_banner && (
-        <div className="shrink-0 mx-3 mt-1 rounded-xl border border-amber-300/50 bg-amber-300/10 px-3 py-1.5 flex items-center gap-2" data-testid="minority-banner">
-          <AlertTriangle size={14} className="text-amber-300 shrink-0" />
-          <span className="text-[11px] leading-tight text-amber-100 font-semibold">
-            Minority Wins round — the side with the SMALLER total stake wins. High risk, bet carefully.
-          </span>
-        </div>
-      )}
       <main className="flex-1 min-h-0 overflow-y-auto px-4 pt-1 pb-1.5 flex flex-col justify-evenly gap-[clamp(6px,1dvh,10px)]">
         <div className="relative shrink-0 panel !rounded-[24px] px-4 py-[clamp(6px,1.2dvh,12px)] overflow-hidden" data-testid="game-board">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">

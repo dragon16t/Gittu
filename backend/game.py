@@ -77,14 +77,44 @@ def draw_result(mode: str = "random", totals: dict = None):
     return dice, ("ODD" if dice % 2 else "EVEN")
 
 
+FAIR_AHEAD = 10
+
+
+def fair_hash(number: int, dice: int, salt: str) -> str:
+    return sha(f"{number}:{dice}:{salt}")
+
+
+async def ensure_commitments(start: int):
+    await db.fair_seeds.update_many({"number": {"$lt": start - 1}, "status": "pending"},
+                                    {"$set": {"status": "void", "revealed_at": iso()}})
+    for n in range(start, start + FAIR_AHEAD):
+        dice, salt = secrets.randbelow(6) + 1, secrets.token_hex(16)
+        await db.fair_seeds.update_one({"number": n}, {"$setOnInsert": {
+            "number": n, "dice": dice, "salt": salt, "hash": fair_hash(n, dice, salt),
+            "status": "pending", "committed_at": iso()}}, upsert=True)
+
+
 async def record_result(rnd: dict):
     fresh = await db.rounds.find_one({"id": rnd["id"]}, NOID) or rnd
-    dice, result = draw_result(fresh.get("mode", "random"), fresh.get("totals"))
-    salt = secrets.token_hex(16)
-    await db.rounds.update_one({"id": rnd["id"], "status": "closed", "result": None}, {"$set": {
+    mode, number = fresh.get("mode", "random"), fresh["number"]
+    seed = await db.fair_seeds.find_one({"number": number, "status": "pending"}, NOID)
+    if mode == "fair":
+        if not seed:
+            await ensure_commitments(number)
+            seed = await db.fair_seeds.find_one({"number": number}, NOID)
+        dice, salt = seed["dice"], seed["salt"]
+        result, rhash = ("ODD" if dice % 2 else "EVEN"), seed["hash"]
+    else:
+        dice, result = draw_result(mode, fresh.get("totals"))
+        salt = secrets.token_hex(16)
+        rhash = sha(f"{rnd['id']}:{dice}:{salt}")
+    res = await db.rounds.update_one({"id": rnd["id"], "status": "closed", "result": None}, {"$set": {
         "status": "revealing", "dice": dice, "result": result, "salt": salt,
-        "result_hash": sha(f"{rnd['id']}:{dice}:{salt}"), "result_recorded_at": iso(),
+        "result_hash": rhash, "result_recorded_at": iso(), "fair": mode == "fair",
         "reveal_ends_at": iso(now() + timedelta(seconds=REVEAL_SECONDS))}})
+    if res.modified_count and seed:
+        await db.fair_seeds.update_one({"number": number, "status": "pending"},
+                                       {"$set": {"status": "used" if mode == "fair" else "void", "revealed_at": iso()}})
 
 
 async def recover():
@@ -122,6 +152,8 @@ async def run_round():
         await asyncio.sleep(2)
         return
     last = await db.rounds.find_one({}, sort=[("number", -1)])
+    if cfg["mode"] == "fair":
+        await ensure_commitments((last["number"] if last else 0) + 1)
     opens = now()
     closes = opens + timedelta(seconds=ROUND_SECONDS)
     rnd = {"id": uid(), "number": (last["number"] if last else 0) + 1, "status": "betting", "mode": cfg["mode"],

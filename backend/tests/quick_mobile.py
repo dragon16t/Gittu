@@ -1,5 +1,5 @@
 import requests, uuid
-B="https://odd-even-vault.preview.emergentagent.com/api"; H={"Origin":B[:-4]}
+B="https://odd-even-royale.preview.emergentagent.com/api"; H={"Origin":B[:-4]}
 s=requests.Session(); s.headers.update(H)
 mob="9"+str(uuid.uuid4().int)[:9]; un="mob"+uuid.uuid4().hex[:5]
 r=s.post(B+"/auth/register",json={"username":un,"password":"Mobile@123","confirm_password":"Mobile@123","accept_terms":True,"mobile":mob,"dob":"1995-04-12"}); print(r.status_code, r.json().get("user",{}).get("mobile"))

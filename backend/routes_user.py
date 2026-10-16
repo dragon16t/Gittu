@@ -6,7 +6,7 @@ from pymongo.errors import DuplicateKeyError
 
 from core import (db, now, iso, uid, current_user, get_config, ledger_debit, ledger_credit, audit, notify, verify_pw, enc, dec, mask,
                   get_file, check_rate, hit_rate)
-from game import round_exposure, parse, ROUND_SECONDS, REVEAL_SECONDS
+from game import round_exposure, parse, ensure_commitments, ROUND_SECONDS, REVEAL_SECONDS, FAIR_AHEAD
 from payments import eligible_deposit_account, assign_withdrawal, OPEN_WITHDRAW
 from promotions import consume_wagering, MIN_WITHDRAWAL
 
@@ -76,7 +76,6 @@ async def game_state(user=Depends(current_user)):
             "recent": [r["result"] for r in recent], "my_bets": my, "last_round_bets": last_bets,
             "balance": w["balance"] if w else 0, "paused": cfg["paused"],
             "config": {"min_stake": cfg["min_stake"], "max_stake": cfg["max_stake"], "multiplier_bps": cfg["multiplier_bps"],
-                       "minority_banner": cfg["mode"] == "minority",
                        "mode": cfg["mode"], "round_seconds": ROUND_SECONDS, "reveal_seconds": REVEAL_SECONDS}}
 
 
@@ -116,6 +115,21 @@ async def place_bet(body: BetIn, request: Request, user=Depends(current_user)):
                                                            f"totals.{side.lower()}_count": 1}})
     await consume_wagering(user["id"], body.amount)
     return {"bet": bet, "balance": w["balance"]}
+
+
+@router.get("/game/fair")
+async def fair_proof(user=Depends(current_user)):
+    cfg = await get_config()
+    if cfg["mode"] == "fair":
+        last = await db.rounds.find_one({}, P, sort=[("number", -1)])
+        await ensure_commitments((last["number"] if last else 0) + 1)
+    upcoming = await db.fair_seeds.find({"status": "pending"}, {"_id": 0, "number": 1, "hash": 1, "committed_at": 1}) \
+        .sort("number", 1).to_list(FAIR_AHEAD + 1)
+    revealed = await db.fair_seeds.find({"status": {"$in": ["used", "void"]}}, P).sort("number", -1).to_list(20)
+    for s in revealed:
+        s["result"] = "ODD" if s["dice"] % 2 else "EVEN"
+    return {"active": cfg["mode"] == "fair", "formula": "SHA256(round_number:dice:salt)",
+            "upcoming": upcoming[:FAIR_AHEAD] if cfg["mode"] == "fair" else [], "revealed": revealed}
 
 
 @router.get("/game/my-bets")

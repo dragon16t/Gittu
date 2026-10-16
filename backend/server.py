@@ -66,6 +66,7 @@ async def create_indexes():
     await db.password_resets.create_index("expires_at", expireAfterSeconds=0)
     await db.wallets.create_index("user_id", unique=True)
     await db.ledger.create_index("key", unique=True)
+    await db.fair_seeds.create_index("number", unique=True)
     await db.ledger.create_index([("user_id", 1), ("created_at", -1)])
     await db.rounds.create_index("number", unique=True)
     await db.rounds.create_index("id", unique=True)

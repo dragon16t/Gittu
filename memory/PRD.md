@@ -39,7 +39,12 @@ Later additions:
   - Compact single-screen game layout with the result shown as a closed capsule
   - Smaller fonts (15px base) and a clean BLACKBA-only login page
 
+- Iteration 5:
+  - Removed the Minority Wins warning banner from the whole platform (Mode 2 logic is unchanged)
+  - Mode 3, Fair Proof (admin mode "fair"): results for the next 10 rounds are pre-generated in `fair_seeds` and published as SHA256(number:dice:salt). Used/void seeds are revealed after the round. The /fair page checks each hash in the browser, and a shield icon appears in the game header only while this mode is active. Endpoint: GET /api/game/fair
+
 ## Backlog
+- P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)
 - P1: Styled modals instead of window.prompt/confirm in the verifier portal
 - P1: Proper date picker in reports
 - P2: WebSocket push instead of 1s polling
