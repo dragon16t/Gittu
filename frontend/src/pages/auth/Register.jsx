@@ -18,7 +18,7 @@ export const RecoveryCodeBox = ({ code, onDone }) => (
 
 export default function Register() {
   const [params] = useSearchParams();
-  const [f, setF] = useState({ username: "", password: "", confirm_password: "", referral_code: params.get("ref") || "", accept_terms: false });
+  const [f, setF] = useState({ username: "", password: "", confirm_password: "", referral_code: params.get("ref") || "", accept_terms: false, mobile: "", dob: "" });
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState(null);
   const { setUser } = useSession();
@@ -51,6 +51,9 @@ export default function Register() {
       ) : (
         <form onSubmit={submit} className="space-y-4">
           <Field label="Username" testid="register-username-input" value={f.username} onChange={set("username")} required />
+          <Field label="Mobile number" type="tel" inputMode="numeric" maxLength={10} prefix="+91" testid="register-mobile-input" value={f.mobile}
+            onChange={(e) => setF({ ...f, mobile: e.target.value.replace(/\D/g, "") })} required />
+          <Field label="Date of birth" type="date" testid="register-dob-input" value={f.dob} onChange={set("dob")} required className="[&_input]:[color-scheme:dark]" />
           <Field label="Password" type="password" testid="register-password-input" value={f.password} onChange={set("password")} required />
           <Field label="Confirm password" type="password" testid="register-confirm-input" value={f.confirm_password}
             onChange={set("confirm_password")} required />

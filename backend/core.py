@@ -131,7 +131,7 @@ def principal(role: str):
         if not sess:
             raise HTTPException(401, "Session revoked")
         user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0, "recovery_hash": 0,
-                                                               "totp_secret": 0, "pending_totp": 0, "backup_codes": 0})
+                                                               "totp_secret": 0, "pending_totp": 0, "backup_codes": 0, "dob_hash": 0})
         if not user or user.get("status") != "active":
             raise HTTPException(403, "Account suspended or not found")
         user["session_id"] = payload["sid"]

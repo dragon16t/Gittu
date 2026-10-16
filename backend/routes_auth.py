@@ -2,7 +2,7 @@ import re
 import io
 import base64
 import secrets
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 import pyotp
 import qrcode
@@ -23,6 +23,8 @@ class RegisterIn(BaseModel):
     confirm_password: str
     referral_code: str = ""
     accept_terms: bool = False
+    mobile: str
+    dob: str
 
 
 class LoginIn(BaseModel):
@@ -32,7 +34,8 @@ class LoginIn(BaseModel):
 
 class ForgotIn(BaseModel):
     username: str
-    recovery_code: str
+    recovery_code: str = ""
+    dob: str = ""
     bank_last4: str = ""
 
 
@@ -72,7 +75,7 @@ class RevokeIn(BaseModel):
 
 
 def public_user(u: dict) -> dict:
-    return {k: u.get(k) for k in ("id", "username", "role", "status", "created_at", "must_change_password")}
+    return {k: u.get(k) for k in ("id", "username", "mobile", "role", "status", "created_at", "must_change_password")}
 
 
 def gen_recovery_code() -> str:
@@ -89,7 +92,8 @@ async def password_login(body: LoginIn, request: Request, role: str) -> dict:
     username = body.username.strip().lower()
     key = f"login:{client_ip(request)}:{username}"
     await check_rate(key, 5, 15)
-    user = await db.users.find_one({"username": username, "role": role})
+    q = {"mobile": username} if role == "user" and re.fullmatch(r"[6-9]\d{9}", username) else {"username": username}
+    user = await db.users.find_one({**q, "role": role})
     ok = bool(user) and verify_pw(body.password, user["password_hash"])
     await db.login_history.insert_one({"id": uid(), "username": username, "role": role, "ip": client_ip(request),
                                        "ua": request.headers.get("user-agent", "")[:200], "success": ok,
@@ -112,6 +116,18 @@ async def register(body: RegisterIn, request: Request, response: Response):
     username = body.username.strip().lower()
     if not re.fullmatch(r"[a-z0-9_]{3,20}", username):
         raise HTTPException(400, "Username must be 3-20 letters, numbers or underscore")
+    mobile = re.sub(r"\D", "", body.mobile)[-10:]
+    if not re.fullmatch(r"[6-9]\d{9}", mobile):
+        raise HTTPException(400, "Enter a valid 10-digit mobile number")
+    try:
+        born = datetime.strptime(body.dob.strip(), "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(400, "Enter a valid date of birth")
+    today = now().date()
+    if (today.year - born.year - ((today.month, today.day) < (born.month, born.day))) < 18:
+        raise HTTPException(400, "You must be 18 or older to register")
+    if await db.users.find_one({"mobile": mobile}):
+        raise HTTPException(400, "Mobile number already registered")
     if not body.accept_terms:
         raise HTTPException(400, "You must accept the Terms & Conditions")
     if body.password != body.confirm_password:
@@ -127,11 +143,12 @@ async def register(body: RegisterIn, request: Request, response: Response):
             raise HTTPException(400, "Invalid referral code")
     user = {"id": uid(), "username": username, "role": "user", "status": "active",
             "password_hash": hash_pw(body.password), "recovery_hash": sha(code), "created_at": iso(),
-            "referral_code": new_referral_code(), "terms_accepted_at": iso(), "terms_version": "2026-06", "referred_by": referrer["id"] if referrer else None}
+            "referral_code": new_referral_code(), "terms_accepted_at": iso(), "terms_version": "2026-06", "mobile": mobile, "referred_by": referrer["id"] if referrer else None}
+    user["dob_hash"] = sha(f"{user['id']}:{born.isoformat()}")
     try:
         await db.users.insert_one(dict(user))
     except Exception:
-        raise HTTPException(400, "Username already taken")
+        raise HTTPException(400, "Username or mobile already registered")
     await ensure_wallet(user["id"])
     await daily_for(user["id"])
     await create_session(response, user, request)
@@ -185,8 +202,13 @@ async def forgot_verify(body: ForgotIn, request: Request):
     username = body.username.strip().lower()
     key = f"forgot:{client_ip(request)}:{username}"
     await check_rate(key, 5, 30)
-    user = await db.users.find_one({"username": username, "role": "user"})
-    ok = bool(user) and secrets.compare_digest(user.get("recovery_hash", ""), sha(body.recovery_code.strip().upper()))
+    q = {"mobile": username} if re.fullmatch(r"[6-9]\d{9}", username) else {"username": username}
+    user = await db.users.find_one({**q, "role": "user"})
+    ok = False
+    if user and body.recovery_code.strip():
+        ok = secrets.compare_digest(user.get("recovery_hash", ""), sha(body.recovery_code.strip().upper()))
+    elif user and body.dob.strip() and user.get("dob_hash"):
+        ok = secrets.compare_digest(user["dob_hash"], sha(f"{user['id']}:{body.dob.strip()}"))
     if ok:
         bank = await db.bank_details.find_one({"user_id": user["id"]})
         if bank and bank.get("account_number_enc"):

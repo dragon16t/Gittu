@@ -87,6 +87,7 @@ async def create_indexes():
     await db.tickets.create_index("id", unique=True)
     await db.tickets.create_index("number", unique=True)
     await db.coupons.create_index([("user_id", 1), ("created_at", -1)])
+    await db.users.create_index("mobile", unique=True, partialFilterExpression={"mobile": {"$type": "string"}})
     await db.users.create_index("referral_code", unique=True, partialFilterExpression={"referral_code": {"$type": "string"}})
     async for u in db.users.find({"role": "user", "referral_code": {"$exists": False}}, {"_id": 0, "id": 1}):
         await promotions.assign_referral_code(u["id"])

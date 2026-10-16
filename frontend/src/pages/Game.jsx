@@ -5,6 +5,8 @@ import { Mail, Gift, Wallet as WalletIcon, Gamepad2, Headset, Trophy } from "luc
 import { api, errMsg, inr, newKey, toPaise } from "@/lib/api";
 import { TopBar, CountdownRing, SideCircle, StakePicker, ResultStage, RecentResults } from "@/components/game/GameParts";
 import { useMusic, useRevealAnimation } from "@/components/game/hooks";
+import { Confetti } from "@/components/game/Confetti";
+import { playBetSound, playWinSound } from "@/lib/sfx";
 
 const WinTicker = ({ winners }) => {
   if (!winners.length) return <div className="h-[22px] shrink-0" />;
@@ -38,6 +40,7 @@ export default function Game() {
   const [amount, setAmount] = useState("100");
   const [busy, setBusy] = useState(false);
   const [coupons, setCoupons] = useState(0);
+  const [burst, setBurst] = useState(0);
   const offset = useRef(0);
   const animated = useRef(null);
   const toasted = useRef(null);
@@ -81,7 +84,12 @@ export default function Game() {
       toasted.current = last.id;
       setTimeout(() => {
         const won = state.last_round_bets.filter((b) => b.status === "won");
-        if (won.length) toast.success(`You won ${inr(won.reduce((s, b) => s + b.payout, 0))}`);
+        if (won.length) {
+          toast.success(`You won ${inr(won.reduce((s, b) => s + b.payout, 0))}`);
+          setBurst(Date.now());
+          playWinSound();
+          setTimeout(() => setBurst(0), 2400);
+        }
         else toast(`Round #${last.number}: ${last.result}. Better luck next round.`);
       }, 300);
     }
@@ -101,6 +109,7 @@ export default function Game() {
     setBusy(true);
     try {
       const { data } = await api.post("/game/bet", { side, amount: paise, client_key: newKey() });
+      playBetSound();
       toast.success(`Bet placed: ${side} ${inr(paise)} · ID ${data.bet.id.slice(0, 8)}`);
       load();
     } catch (e) {
@@ -130,6 +139,7 @@ export default function Game() {
         </div>
       </header>
 
+      <Confetti burstKey={burst} />
       <WinTicker winners={state?.winners || []} />
       <main className="flex-1 min-h-0 overflow-y-auto px-4 pt-1 pb-1.5 flex flex-col justify-evenly gap-[clamp(6px,1dvh,10px)]">
         <div className="relative shrink-0 panel !rounded-[24px] px-4 py-[clamp(6px,1.2dvh,12px)] overflow-hidden" data-testid="game-board">

@@ -132,6 +132,16 @@
 .res-odd { color: var(--odd-green); border-color: var(--odd-green); background: rgba(34, 197, 94, 0.08); box-shadow: 0 0 10px rgba(34, 197, 94, 0.25); }
 .res-even { color: var(--even-red); border-color: var(--even-red); background: rgba(239, 68, 68, 0.08); box-shadow: 0 0 10px rgba(239, 68, 68, 0.25); }
 
+.confetti-piece {
+    position: absolute; top: -20px; border-radius: 2px;
+    background: linear-gradient(135deg, #ffffff, #9a9a9a 55%, #f5f5f5);
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+    animation-name: confetti-fall; animation-timing-function: cubic-bezier(.25, .6, .4, 1); animation-fill-mode: forwards;
+}
+@keyframes confetti-fall {
+    0% { transform: translate(0, 0) rotate(var(--rot)); opacity: 1; }
+    100% { transform: translate(var(--drift), 105vh) rotate(calc(var(--rot) + 720deg)); opacity: 0.2; }
+}
 .ticker { mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
 .ticker-track { display: inline-flex; gap: 28px; white-space: nowrap; animation: ticker 28s linear infinite; }
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }

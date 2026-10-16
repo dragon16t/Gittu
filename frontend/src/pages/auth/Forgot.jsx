@@ -7,7 +7,8 @@ import { RecoveryCodeBox } from "./Register";
 
 export default function Forgot() {
   const [step, setStep] = useState(1);
-  const [f, setF] = useState({ username: "", recovery_code: "", bank_last4: "", password: "", confirm_password: "" });
+  const [f, setF] = useState({ username: "", recovery_code: "", dob: "", bank_last4: "", password: "", confirm_password: "" });
+  const [method, setMethod] = useState("dob");
   const [token, setToken] = useState("");
   const [code, setCode] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -18,7 +19,7 @@ export default function Forgot() {
     e.preventDefault();
     setBusy(true);
     try {
-      const { data } = await api.post("/auth/forgot/verify", f);
+      const { data } = await api.post("/auth/forgot/verify", { username: f.username, bank_last4: f.bank_last4, ...(method === "dob" ? { dob: f.dob } : { recovery_code: f.recovery_code }) });
       setToken(data.reset_token);
       setStep(2);
     } catch (err) {
@@ -47,9 +48,19 @@ export default function Forgot() {
         <RecoveryCodeBox code={code} onDone={() => nav("/login")} />
       ) : step === 1 ? (
         <form onSubmit={verify} className="space-y-4">
-          <Field label="Username" testid="forgot-username-input" value={f.username} onChange={set("username")} required />
-          <Field label="Recovery code" testid="forgot-recovery-input" placeholder="XXXX-XXXX-XXXX-XXXX" value={f.recovery_code}
-            onChange={set("recovery_code")} required />
+          <Field label="Username or mobile number" testid="forgot-username-input" value={f.username} onChange={set("username")} required />
+          <div className="grid grid-cols-2 gap-2">
+            {[["dob", "Date of birth"], ["code", "Recovery code"]].map(([k, l]) => (
+              <button type="button" key={k} onClick={() => setMethod(k)} data-testid={`forgot-method-${k}`}
+                className={`h-9 rounded-full text-xs font-semibold ${method === k ? "silver-btn" : "ghost-chip"}`}>{l}</button>
+            ))}
+          </div>
+          {method === "dob" ? (
+            <Field label="Date of birth" type="date" testid="forgot-dob-input" value={f.dob} onChange={set("dob")} required className="[&_input]:[color-scheme:dark]" />
+          ) : (
+            <Field label="Recovery code" testid="forgot-recovery-input" placeholder="XXXX-XXXX-XXXX-XXXX" value={f.recovery_code}
+              onChange={set("recovery_code")} required />
+          )}
           <Field label="Last 4 digits of bank account (if added)" testid="forgot-last4-input" maxLength={4} value={f.bank_last4}
             onChange={set("bank_last4")} />
           <SilverButton type="submit" disabled={busy} data-testid="forgot-verify-button">VERIFY</SilverButton>

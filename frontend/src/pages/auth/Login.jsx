@@ -33,7 +33,7 @@ export default function Login() {
       footer={<>New here? <TextLink to="/register" testid="signup-link">Create an account</TextLink></>}
     >
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Username" testid="login-username-input" value={f.username} autoComplete="username"
+        <Field label="Username or mobile number" testid="login-username-input" value={f.username} autoComplete="username"
           onChange={(e) => setF({ ...f, username: e.target.value })} required />
         <Field label="Password" type="password" testid="login-password-input" value={f.password} autoComplete="current-password"
           onChange={(e) => setF({ ...f, password: e.target.value })} required />
