@@ -84,6 +84,8 @@ async def create_indexes():
     await db.practice_previews.create_index("id", unique=True)
     await db.audit_logs.create_index("created_at")
     await db.coupons.create_index("key", unique=True)
+    await db.used_totp.create_index("key", unique=True)
+    await db.used_totp.create_index("at", expireAfterSeconds=180)
     await db.tickets.create_index("id", unique=True)
     await db.tickets.create_index("number", unique=True)
     await db.coupons.create_index([("user_id", 1), ("created_at", -1)])

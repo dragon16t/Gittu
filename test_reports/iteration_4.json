@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 4: scroll/rigid-layout fixes and end-to-end wallet money math. Backend: new suite test_iter4_money_math.py passed 11/11 with a fresh user (mobile+DOB). It covered: deposit pending then verified (a second verify is rejected), daily coupon (+₹10, wagering +₹30, a second claim is rejected), withdrawal blocked while wagering is unfinished, 8 parallel bets with the same client_key debit once, 30 parallel ₹50 bets give exactly floor(balance/5000)=18 successes and the balance never goes negative, admin credit/debit (over-balance debit rejected with 400, bad TOTP rejected with 401), settled balance = deposits+bonuses-stakes+1.95x payouts+credits-debits, UPI save with password, withdrawal of ₹300 approved -> processing -> completed (reserved back to 0, total_withdrawals=30000, a second complete is rejected), a rejected withdrawal refunds exactly once, ledger type filters work, the ledger sum equals the wallet balance, and global reconcile shows [] (no discrepancies). Iter3 regression suite: 12/12 after fixing a stale register payload. Frontend (390x844): the viewport meta blocks zoom; html/body have overflow hidden and overscroll none; #app-scroll is the only scroll container; the game page does not scroll at all (scrollHeight 844 = clientHeight, wheel has no effect); the sticky Wallet header stays at top 0 when scrolled; Wallet->Withdraw, Settings->Withdraw and Wallet->Deposit all open at scrollTop 0 with the form visible; the 'Add UPI details' and 'Edit destination' links open /settings?bank=1&section=bank with the bank form open and scrolled into view. Wallet ledger tabs: Withdrawals shows reserve/paid/refund rows (the paid row shows '₹300.00 paid' in neutral color, not as a credit), Adjustments shows admin credit/debit, and running balances are correct. Admin UI add funds: credit updated the balance, an over-balance debit showed an 'Insufficient balance' toast, and Reports -> Reconcile shows 'All wallets match'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "core.reserved_settle", "issue": "The ledger entry is inserted before the conditional update on wallet reserved ({reserved: {$gte: amount}}). If reserved is ever short, the ledger records the settlement but the wallet reserved stays unchanged, and nothing reports it (reconcile would catch it later). Consider checking modified_count and alerting."},
+      {"endpoint": "POST /api/admin/users/{id}/adjust (reauth)", "issue": "The same TOTP code can be used again within its window (no replay protection). Low risk but worth hardening for a money action."},
+      {"endpoint": "POST /api/admin/withdrawals/{wid}/reject", "issue": "Does not push a history entry or reject_reason, unlike the verifier reject. The audit trail on the withdrawal doc is incomplete."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Wallet ledger list (390px mobile)", "issues": ["On long labels such as 'Withdrawal requested (moved to reserved)', the right amount column wraps: the '−' sign is on its own line above '₹300.00', and 'Bal' / '₹280.00' also split. Add whitespace-nowrap and shrink-0 to the amount column (Wallet.jsx line ~57) and/or shorten the labels."]},
+      {"screen": "MobileShell top", "issues": ["pt-2 on the shell leaves an 8px strip above the sticky header at scrollTop 0 (visible as a lighter band on Withdraw/Deposit). Consider pt-0."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter4_money_math.py", "/app/backend/tests/setup_iter4_ui_user.py", "/app/test_reports/pytest/iter4_money.xml"],
+  "action_items": [
+    "Optional: nowrap the ledger amount column on mobile (Wallet.jsx)",
+    "Optional: harden reserved_settle (check modified_count), add TOTP replay protection, add history/reason to the admin withdrawal reject",
+    "Optional: Settings opens the bank panel only from the initial ?bank=1 param (useState init). Navigating to ?bank=1 while already mounted on /settings will not open it; use an effect on params."
+  ],
+  "critical_code_review_comments": [
+    "The ledger_debit dup-key check followed by a compensating $inc on DuplicateKeyError is correct (verified by the concurrency test), but it briefly over-debits during races. Acceptable.",
+    "consume_wagering resets wager_required to 0 once complete, so the wagering progress shows 100% and loses its history. Fine for the UX."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter4_money_math.py", "/app/backend/tests/setup_iter4_ui_user.py", "/app/backend/tests/test_iter3_features.py (register payload now includes mobile+dob)"],
+  "success_rate": {"backend": "100% (11/11 new + 12/12 iter3 regression)", "frontend": "100% functional; 2 minor design issues"},
+  "seed_data_creation": "Users t4xxxxxxxx created by the test runs (password Audit@1234). UI user t4l7b9b9a8 / Audit@1234 has a deposit, admin adjustments, one completed and one rejected withdrawal, and UPI uiuser@upi.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && REACT_APP_BACKEND_URL=<url> pytest tests/test_iter4_money_math.py -n 0 (pytest.ini adds xdist, so -n 0 is needed). Clear db.rate_events first. Withdrawals may be assigned to another verifier's account; the tests call /api/admin/withdrawals/{id}/reassign until pv1001 owns them. Use page.request.post to register inside Playwright so the cookie is shared with the browser context."
+}

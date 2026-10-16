@@ -242,7 +242,9 @@ async def reserved_settle(user_id: str, amount: int, typ: str, key: str, meta: d
                                     "key": key, "meta": meta or {}, "created_at": iso()})
     except DuplicateKeyError:
         return False
-    await db.wallets.update_one({"user_id": user_id, "reserved": {"$gte": amount}}, {"$inc": {"reserved": -amount}})
+    res = await db.wallets.update_one({"user_id": user_id, "reserved": {"$gte": amount}}, {"$inc": {"reserved": -amount}})
+    if not res.modified_count:
+        await alert("reconciliation", f"Reserved funds short for user {user_id} on {key}", key)
     return True
 
 

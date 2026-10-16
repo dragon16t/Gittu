@@ -4,7 +4,7 @@ import { ChevronLeft } from "lucide-react";
 export const MobileShell = ({ title, children, testid, back = "/" }) => {
   const nav = useNavigate();
   return (
-    <div className="relative z-10 mx-auto max-w-[480px] min-h-full px-4 pb-14 pt-2 text-sm" data-testid={testid}>
+    <div className="relative z-10 mx-auto max-w-[480px] min-h-full px-4 pb-14 pt-0 text-sm" data-testid={testid}>
       <div className="sticky top-0 z-30 -mx-4 px-4 py-3 mb-4 flex items-center gap-3 bg-black/85 backdrop-blur-xl border-b border-white/5" data-testid="page-header">
         <button
           onClick={() => nav(back)}

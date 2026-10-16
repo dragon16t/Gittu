@@ -287,9 +287,14 @@ def new_backup_codes():
 
 async def reauth(admin: dict, password: str, code: str):
     full = await db.users.find_one({"id": admin["id"]})
+    code = code.strip().replace(" ", "")
     if not verify_pw(password, full["password_hash"]) or not await verify_second_factor(full, code, allow_backup=False):
         await alert("security", f"Failed re-authentication for admin {admin['username']}")
         raise HTTPException(401, "Re-authentication failed")
+    try:
+        await db.used_totp.insert_one({"key": f"{admin['id']}:{code}", "at": now()})
+    except Exception:
+        raise HTTPException(401, "This code was already used. Wait for the next code.")
 
 
 @router.post("/admin/auth/login")

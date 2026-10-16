@@ -29,7 +29,8 @@ def register():
     s = sess()
     name = "test_w" + secrets.token_hex(3)
     r = s.post(f"{API}/auth/register", json={"username": name, "password": "Passw0rd!", "confirm_password": "Passw0rd!",
-                                             "accept_terms": True})
+                                             "accept_terms": True, "dob": "1990-01-01",
+                                             "mobile": "9" + str(secrets.randbelow(10**9)).zfill(9)})
     assert r.status_code == 200, r.text
     return s, r.json()["user"]["id"], name
 

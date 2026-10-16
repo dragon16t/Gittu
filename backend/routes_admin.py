@@ -94,6 +94,10 @@ class FundsIn(BaseModel):
     reason: str
 
 
+class RejectIn(BaseModel):
+    reason: str = "Rejected by admin"
+
+
 class CommissionIn(BaseModel):
     amount: int
     type: str
@@ -456,11 +460,14 @@ async def reassign_wd(wid: str, request: Request, admin=Depends(current_admin)):
 
 
 @router.post("/withdrawals/{wid}/reject")
-async def admin_reject_wd(wid: str, request: Request, admin=Depends(current_admin)):
+async def admin_reject_wd(wid: str, request: Request, body: RejectIn = None, admin=Depends(current_admin)):
+    reason = (body.reason if body else "Rejected by admin")[:200]
     w = await db.withdrawals.find_one({"id": wid}, P)
     if not w or w["status"] not in ("pending", "approved"):
         raise HTTPException(400, "Withdrawal cannot be rejected")
-    res = await db.withdrawals.update_one({"id": wid, "status": w["status"]}, {"$set": {"status": "rejected", "rejected_at": iso()}})
+    res = await db.withdrawals.update_one({"id": wid, "status": w["status"]}, {
+        "$set": {"status": "rejected", "rejected_at": iso(), "reject_reason": reason},
+        "$push": {"history": {"at": iso(), "event": "rejected", "by": admin["username"], "reject_reason": reason}}})
     if res.modified_count:
         await refund_withdrawal(w)
     await audit(admin, "withdrawal.rejected", wid, request=request)

@@ -7,8 +7,8 @@ import { WagerProgress } from "@/components/WagerProgress";
 const TABS = [["", "All"], ["bet_stake", "Bets"], ["bet_win", "Wins"], ["deposit", "Deposits"],
   ["withdraw_reserve,withdraw_complete,withdraw_refund", "Withdrawals"], ["withdraw_refund", "Refunds"], ["promotion", "Bonuses"],
   ["manual_credit,manual_debit", "Adjustments"]];
-const LABEL = { bet_stake: "Bet stake", bet_win: "Winning return", deposit: "Deposit", withdraw_reserve: "Withdrawal requested (moved to reserved)",
-  withdraw_complete: "Withdrawal paid out (from reserved)", withdraw_refund: "Withdrawal refund", manual_credit: "Admin credit",
+const LABEL = { bet_stake: "Bet stake", bet_win: "Winning return", deposit: "Deposit", withdraw_reserve: "Withdrawal reserved",
+  withdraw_complete: "Withdrawal paid", withdraw_refund: "Withdrawal refund", manual_credit: "Admin credit",
   manual_debit: "Admin debit", promotion: "Bonus" };
 
 export default function Wallet() {
@@ -54,7 +54,7 @@ export default function Wallet() {
               <div className="text-sm font-semibold">{LABEL[r.type] || r.type}</div>
               <div className="text-[11px] text-neutral-500">{dt(r.created_at)} · {r.id.slice(0, 8)}</div>
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0 whitespace-nowrap pl-3">
               <div className={`mono font-bold ${r.amount > 0 ? "text-emerald-400" : r.amount < 0 ? "text-neutral-200" : "text-neutral-500"}`}>
                 {r.amount > 0 ? "+" : r.amount < 0 ? "−" : ""}{r.amount ? inr(Math.abs(r.amount)) : `${inr(-(r.reserved_change || 0))} paid`}
               </div>
