@@ -69,7 +69,11 @@ async def game_state(user=Depends(current_user)):
     if last:
         last_bets = await db.bets.find({"round_id": last["id"], "user_id": user["id"]}, P).to_list(50)
     w = await db.wallets.find_one({"user_id": user["id"]}, P)
-    return {"server_time": iso(), "round": public_round(cur), "last_round": public_round(last),
+    wins = await db.bets.find({"status": "won"}, {"_id": 0, "username": 1, "payout": 1, "round_number": 1, "side": 1, "id": 1}).sort("settled_at", -1).to_list(12)
+    for b in wins:
+        n = b.pop("username")
+        b["name"] = n[:2] + "***" + n[-1:]
+    return {"server_time": iso(), "winners": wins, "round": public_round(cur), "last_round": public_round(last),
             "recent": [r["result"] for r in recent], "my_bets": my, "last_round_bets": last_bets,
             "balance": w["balance"] if w else 0, "paused": cfg["paused"],
             "config": {"min_stake": cfg["min_stake"], "max_stake": cfg["max_stake"], "multiplier_bps": cfg["multiplier_bps"],
@@ -157,7 +161,10 @@ async def sum_of(coll, match):
 async def wallet(user=Depends(current_user)):
     w = await db.wallets.find_one({"user_id": user["id"]}, P)
     uidq = user["id"]
-    return {"balance": w["balance"], "reserved": w["reserved"], "wager_remaining": w.get("wager_remaining", 0),
+    rem = w.get("wager_remaining", 0)
+    req = max(w.get("wager_required", 0), rem)
+    return {"balance": w["balance"], "reserved": w["reserved"], "wager_remaining": rem, "wager_required": req,
+            "wager_done": req - rem,
             "min_withdrawal": MIN_WITHDRAWAL,
             "pending_deposits": await sum_of("deposits", {"user_id": uidq, "status": "pending"}),
             "pending_withdrawals": await sum_of("withdrawals", {"user_id": uidq, "status": {"$in": OPEN_WITHDRAW}}),
@@ -172,6 +179,14 @@ async def wallet_ledger(type: str = "", user=Depends(current_user)):
     if type:
         q["type"] = type
     return await db.ledger.find(q, {"_id": 0, "key": 0}).sort("created_at", -1).to_list(300)
+
+
+@router.get("/alerts/poll")
+async def poll_alerts(user=Depends(current_user)):
+    rows = await db.notifications.find({"user_id": user["id"], "read": False}, P).sort("created_at", 1).to_list(10)
+    if rows:
+        await db.notifications.update_many({"id": {"$in": [r["id"] for r in rows]}}, {"$set": {"read": True}})
+    return rows
 
 
 @router.get("/notifications")

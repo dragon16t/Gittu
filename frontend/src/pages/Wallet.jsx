@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, inr, dt } from "@/lib/api";
 import { MobileShell, Stat, Badge, Empty } from "@/components/common";
+import { WagerProgress } from "@/components/WagerProgress";
 
 const TABS = [["", "All"], ["bet_stake", "Bets"], ["bet_win", "Wins"], ["deposit", "Deposits"], ["withdraw_reserve", "Withdrawals"],
   ["withdraw_refund", "Refunds"], ["promotion", "Bonuses"]];
@@ -24,11 +25,7 @@ export default function Wallet() {
       <div className="panel p-6 mb-4 rise">
         <div className="text-neutral-400 text-sm">Available balance</div>
         <div className="text-4xl font-black silver-text mt-1" data-testid="wallet-balance">{inr(w?.balance)}</div>
-        {w?.wager_remaining > 0 && (
-          <div className="text-xs text-amber-200/80 mt-2" data-testid="wager-remaining">
-            Wagering remaining before withdrawal: {inr(w.wager_remaining)}
-          </div>
-        )}
+        <WagerProgress w={w} />
         <div className="flex gap-3 mt-5">
           <Link to="/deposit" className="silver-btn rounded-full h-11 flex-1 flex items-center justify-center font-bold" data-testid="wallet-deposit-link">Deposit</Link>
           <Link to="/withdraw" className="ghost-chip rounded-full h-11 flex-1 flex items-center justify-center font-bold" data-testid="wallet-withdraw-link">Withdraw</Link>

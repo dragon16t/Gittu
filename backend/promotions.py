@@ -33,12 +33,12 @@ async def assign_referral_code(user_id: str) -> str:
 
 
 async def add_wagering(user_id: str, amount: int):
-    await db.wallets.update_one({"user_id": user_id}, {"$inc": {"wager_remaining": amount}})
+    await db.wallets.update_one({"user_id": user_id}, {"$inc": {"wager_remaining": amount, "wager_required": amount}})
 
 
 async def consume_wagering(user_id: str, stake: int):
     await db.wallets.update_one({"user_id": user_id}, {"$inc": {"wager_remaining": -stake}})
-    await db.wallets.update_one({"user_id": user_id, "wager_remaining": {"$lt": 0}}, {"$set": {"wager_remaining": 0}})
+    await db.wallets.update_one({"user_id": user_id, "wager_remaining": {"$lte": 0}}, {"$set": {"wager_remaining": 0, "wager_required": 0}})
 
 
 async def issue_coupon(user_id: str, kind: str, amount: int, mult: int, title: str, key: str, ref: str = "", hours=24):

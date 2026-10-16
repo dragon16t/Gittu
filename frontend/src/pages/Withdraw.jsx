@@ -4,6 +4,7 @@ import { Headset } from "lucide-react";
 import { toast } from "sonner";
 import { api, errMsg, inr, dt, toPaise, newKey } from "@/lib/api";
 import { MobileShell, Field, SilverButton, Badge, Empty } from "@/components/common";
+import { WagerProgress } from "@/components/WagerProgress";
 
 export default function Withdraw() {
   const [w, setW] = useState(null);
@@ -40,11 +41,7 @@ export default function Withdraw() {
         <div className="flex justify-between text-sm">
           <span className="text-neutral-400">Available</span><span className="mono font-bold" data-testid="withdraw-available">{inr(w?.balance)}</span>
         </div>
-        {w?.wager_remaining > 0 && (
-          <div className="text-xs text-amber-200/90 border border-amber-200/20 rounded-xl p-3" data-testid="withdraw-wager-warning">
-            Wagering requirement pending: place {inr(w.wager_remaining)} more in bets to unlock withdrawals.
-          </div>
-        )}
+        <div data-testid="withdraw-wager-warning"><WagerProgress w={w} /></div>
         {bank === null && (
           <div className="text-sm text-neutral-300 border border-white/15 rounded-xl p-3">
             Save your UPI ID first. <Link to="/settings?bank=1" className="underline" data-testid="add-upi-link">Add UPI details</Link>

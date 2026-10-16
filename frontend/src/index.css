@@ -98,7 +98,7 @@
 .side-ring.dim { opacity: 0.55; }
 
 .notch {
-    --notch: clamp(76px, 11dvh, 104px);
+    --notch: clamp(54px, 9dvh, 92px);
     position: relative;
     width: var(--notch); height: var(--notch); border-radius: 9999px;
     background: radial-gradient(circle at 50% 40%, #1d1d1d 0%, #060606 70%);
@@ -122,6 +122,10 @@
 .res-chip { border-radius: 9999px; border: 2px solid; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 .res-odd { color: var(--odd-green); border-color: var(--odd-green); background: rgba(34, 197, 94, 0.08); box-shadow: 0 0 10px rgba(34, 197, 94, 0.25); }
 .res-even { color: var(--even-red); border-color: var(--even-red); background: rgba(239, 68, 68, 0.08); box-shadow: 0 0 10px rgba(239, 68, 68, 0.25); }
+
+.ticker { mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.ticker-track { display: inline-flex; gap: 28px; white-space: nowrap; animation: ticker 28s linear infinite; }
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 .glow-line { height: 1px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent); }
 

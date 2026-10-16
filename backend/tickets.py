@@ -43,6 +43,13 @@ async def push(tid: str, ev: dict, status: str = None, **fields):
     await db.tickets.update_one({"id": tid}, upd)
 
 
+async def notify_agent(t: dict, title: str, body: str):
+    if t.get("verifier_id"):
+        v = await db.verifiers.find_one({"id": t["verifier_id"]}, {"_id": 0, "user_id": 1})
+        if v:
+            await notify(v["user_id"], title, body)
+
+
 async def ref_doc(kind: str, ref_id: str):
     coll = {"deposit": "deposits", "withdrawal": "withdrawals"}.get(kind)
     return await db[coll].find_one({"id": ref_id}, {"_id": 0, "destination": 0}) if coll and ref_id else None
@@ -97,6 +104,8 @@ async def user_reply(tid: str, body: NoteIn, user=Depends(current_user)):
     if not t or t["status"] == "closed":
         raise HTTPException(400, "Ticket not found or closed")
     await push(tid, event(user, "user_reply", body.message.strip()[:1000]))
+    await notify_agent(t, f"User replied on {t['number']}", body.message.strip()[:200])
+    await alert("ticket", f"{user['username']} replied on ticket {t['number']}", tid)
     return {"ok": True}
 
 
@@ -129,6 +138,8 @@ async def admin_assign(tid: str, body: AssignIn, request: Request, admin=Depends
     if not v:
         raise HTTPException(400, "Select an agent to share this ticket with")
     await push(tid, event(admin, "assigned", f"Shared with {v['display_name']}", verifier_id=vid), "assigned", verifier_id=vid)
+    await notify(v["user_id"], f"New ticket {t['number']}", f"{t['kind'].title()} ticket from {t['username']} was shared with you.")
+    await notify(t["user_id"], f"Ticket {t['number']} update", "Your ticket was shared with the payment agent.")
     await audit(admin, "ticket.assigned", tid, {"verifier_id": vid}, request)
     return {"ok": True}
 
@@ -139,6 +150,7 @@ async def admin_note(tid: str, body: NoteIn, admin=Depends(current_admin)):
     if not t or t["status"] == "closed":
         raise HTTPException(404, "Ticket not found or closed")
     await push(tid, event(admin, "admin_reply", body.message.strip()[:1000]))
+    await notify_agent(t, f"Admin replied on {t['number']}", body.message.strip()[:200])
     await notify(t["user_id"], f"Support update {t['number']}", body.message.strip()[:200])
     return {"ok": True}
 
@@ -154,8 +166,31 @@ async def admin_status(tid: str, body: NoteIn, request: Request, admin=Depends(c
     await push(tid, event(admin, action, f"Ticket {action} by admin"), action,
                **({"resolved_at": iso()} if action == "resolved" else {}))
     await notify(t["user_id"], f"Ticket {t['number']} {action}", f"Your support ticket was {action}.")
+    await notify_agent(t, f"Ticket {t['number']} {action}", f"Admin marked the ticket {action}.")
     await audit(admin, f"ticket.{action}", tid, request=request)
     return {"ok": True}
+
+
+@router.get("/admin/workload")
+async def workload(admin=Depends(current_admin)):
+    out = []
+    async for v in db.verifiers.find({}, P):
+        vid = v["id"]
+        dep = await db.deposits.aggregate([{"$match": {"verifier_id": vid, "status": "pending"}},
+                                           {"$group": {"_id": None, "c": {"$sum": 1}, "s": {"$sum": "$amount"}}}]).to_list(1)
+        wd = await db.withdrawals.aggregate([{"$match": {"verifier_id": vid, "status": {"$in": ["pending", "approved", "processing"]}}},
+                                             {"$group": {"_id": None, "c": {"$sum": 1}, "s": {"$sum": "$amount"}}}]).to_list(1)
+        accs = await db.payment_accounts.find({"verifier_id": vid}, {"_id": 0, "available_funds": 1, "committed": 1}).to_list(50)
+        out.append({"id": vid, "display_name": v["display_name"], "username": v["username"], "online": v.get("online", False),
+                    "status": v["status"], "deposit_capacity": v.get("deposit_capacity", 0),
+                    "open_tickets": await db.tickets.count_documents({"verifier_id": vid, "status": {"$in": ["assigned", "reopened"]}}),
+                    "actioned_tickets": await db.tickets.count_documents({"verifier_id": vid, "status": "agent_actioned"}),
+                    "pending_deposits": dep[0]["c"] if dep else 0, "pending_deposit_amount": dep[0]["s"] if dep else 0,
+                    "open_withdrawals": wd[0]["c"] if wd else 0, "open_withdrawal_amount": wd[0]["s"] if wd else 0,
+                    "free_funds": sum(a["available_funds"] - a["committed"] for a in accs)})
+    unassigned = await db.tickets.count_documents({"status": {"$in": ["open", "reopened"]}, "verifier_id": None})
+    return {"agents": out, "unassigned_tickets": unassigned,
+            "unassigned_withdrawals": await db.withdrawals.count_documents({"status": "pending", "account_id": None})}
 
 
 @router.get("/admin/tickets/{tid}/proof/{idx}")
@@ -203,7 +238,9 @@ async def verifier_tickets(user=Depends(current_verifier)):
 async def verifier_note(tid: str, body: NoteIn, user=Depends(current_verifier)):
     v = await vprofile(user)
     await my_ticket(tid, v)
+    t = await db.tickets.find_one({"id": tid}, P)
     await push(tid, event(user, "agent_note", body.message.strip()[:1000]))
+    await alert("ticket", f"Agent {user['username']} added a note on {t['number']}", tid)
     return {"ok": True}
 
 
@@ -229,6 +266,8 @@ async def ticket_approve_deposit(tid: str, body: ApproveIn, request: Request, us
         d["utr"] = utr
     await do_verify_deposit(v, d, user, request, allowed=("initiated", "pending", "rejected"), note=f"ticket {t['number']}")
     await push(tid, event(user, "deposit_approved", body.note or "Payment confirmed and wallet credited"), "agent_actioned")
+    await notify(t["user_id"], f"Ticket {t['number']} update", "Your deposit was approved and credited.")
+    await alert("ticket", f"Agent approved deposit on {t['number']} — review and resolve", tid)
     return {"ok": True}
 
 
@@ -258,4 +297,6 @@ async def ticket_process_withdrawal(tid: str, request: Request, reference: str =
     await db.tickets.update_one({"id": tid}, {"$push": {"proofs": proof}})
     await db.withdrawals.update_one({"id": w["id"]}, {"$push": {"proofs": proof}})
     await push(tid, event(user, "withdrawal_processed", note or f"Transferred, reference {ref}", reference=ref), "agent_actioned")
+    await notify(t["user_id"], f"Ticket {t['number']} update", f"Your withdrawal was processed. Reference {ref}.")
+    await alert("ticket", f"Agent processed withdrawal on {t['number']} — proof uploaded", tid)
     return {"ok": True}

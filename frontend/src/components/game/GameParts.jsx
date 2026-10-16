@@ -5,12 +5,12 @@ import { inr } from "@/lib/api";
 export const TopBar = ({ balance, music, onToggleMusic }) => (
   <div className="flex items-center justify-between gap-2">
     <div className="flex items-center gap-3 min-w-0">
-      <Link to="/settings" className="h-12 w-12 shrink-0 rounded-full ghost-chip flex items-center justify-center" data-testid="profile-button">
-        <User size={22} strokeWidth={1.6} />
+      <Link to="/settings" className="h-10 w-10 shrink-0 rounded-full ghost-chip flex items-center justify-center" data-testid="profile-button">
+        <User size={19} strokeWidth={1.6} />
       </Link>
       <div className="min-w-0">
         <div className="text-neutral-400 text-xs">Balance</div>
-        <div className="text-[clamp(15px,4.6vw,20px)] font-bold tracking-tight truncate" data-testid="header-balance">{inr(balance)}</div>
+        <div className="text-[clamp(14px,4.4vw,18px)] font-bold leading-tight tracking-tight truncate" data-testid="header-balance">{inr(balance)}</div>
       </div>
     </div>
     <div className="flex items-center gap-1.5 shrink-0">
@@ -18,9 +18,9 @@ export const TopBar = ({ balance, music, onToggleMusic }) => (
         data-testid="music-toggle-button" aria-label="Toggle music">
         {music ? <Volume2 size={17} /> : <VolumeX size={17} />}
       </button>
-      <Link to="/deposit" className="silver-btn rounded-full h-10 pl-4 pr-1 flex items-center gap-2 font-semibold text-sm" data-testid="header-deposit-button">
+      <Link to="/deposit" className="silver-btn rounded-full h-9 pl-3.5 pr-1 flex items-center gap-2 font-semibold text-sm" data-testid="header-deposit-button">
         Deposit
-        <span className="h-8 w-8 rounded-full bg-black text-white flex items-center justify-center"><Plus size={16} /></span>
+        <span className="h-7 w-7 rounded-full bg-black text-white flex items-center justify-center"><Plus size={15} /></span>
       </Link>
       <Link to="/settings" className="h-8 w-8 flex items-center justify-center text-neutral-300 hover:text-white" data-testid="settings-button"><Settings size={22} /></Link>
     </div>
@@ -42,8 +42,8 @@ export const CountdownRing = ({ label, value, progress }) => {
           </linearGradient>
         </defs>
       </svg>
-      <div className="relative text-[9px] text-neutral-400 leading-none" data-testid="round-status-label">{label}</div>
-      <div className="relative text-[clamp(17px,2.8dvh,26px)] font-extrabold leading-tight mono tracking-tight" data-testid="round-countdown-value">{value}</div>
+      <div className="relative text-[clamp(7px,1.1dvh,9px)] text-neutral-400 leading-none" data-testid="round-status-label">{label}</div>
+      <div className="relative text-[clamp(14px,2.5dvh,24px)] font-extrabold leading-tight mono tracking-tight" data-testid="round-countdown-value">{value}</div>
     </div>
   );
 };
@@ -53,34 +53,34 @@ export const SideCircle = ({ side, multiplier, active, dim, onClick, disabled })
     onClick={onClick}
     disabled={disabled}
     data-testid={`select-${side.toLowerCase()}-button`}
-    className={`side-ring relative w-[min(30vw,16dvh)] max-w-[140px] aspect-square flex flex-col items-center justify-center ${active ? "active" : ""} ${dim ? "dim" : ""}`}
+    className={`side-ring relative w-[min(27vw,14dvh)] max-w-[130px] aspect-square flex flex-col items-center justify-center ${active ? "active" : ""} ${dim ? "dim" : ""}`}
   >
     <span className="inner-ring" />
-    <span className="relative text-[clamp(22px,min(8vw,4.4dvh),40px)] font-black silver-text leading-none">{side}</span>
-    <span className="relative mt-1 text-[clamp(12px,2dvh,17px)] font-bold text-neutral-200">{multiplier}x</span>
+    <span className="relative text-[clamp(17px,min(7vw,3.6dvh),34px)] font-black silver-text leading-none">{side}</span>
+    <span className="relative mt-0.5 text-[clamp(10px,1.7dvh,15px)] font-bold text-neutral-200">{multiplier}x</span>
   </button>
 );
 
 const PRESETS = [1000, 5000, 10000, 50000, 100000];
 export const StakePicker = ({ amount, setAmount }) => (
   <div>
-    <div className="text-neutral-400 text-[11px] mb-1">Bet Amount (₹)</div>
-    <div className="field h-11 flex items-center px-4 gap-4">
-      <span className="text-2xl text-neutral-400">₹</span>
+    <div className="sr-only">Bet Amount (₹)</div>
+    <div className="field h-[clamp(36px,5.2dvh,44px)] flex items-center px-4 gap-4">
+      <span className="text-lg text-neutral-400">₹</span>
       <input type="number" inputMode="decimal" min="1" value={amount} onChange={(e) => setAmount(e.target.value)}
-        className="text-lg font-semibold" data-testid="stake-amount-input" />
+        className="text-base font-semibold" placeholder="Bet amount" data-testid="stake-amount-input" />
       {amount !== "" && (
         <button onClick={() => setAmount("")} className="h-7 w-7 rounded-full bg-neutral-300 text-black flex items-center justify-center" data-testid="stake-clear-button">
           <X size={15} strokeWidth={3} />
         </button>
       )}
     </div>
-    <div className="grid grid-cols-5 gap-2 mt-2">
+    <div className="grid grid-cols-5 gap-1.5 mt-1.5">
       {PRESETS.map((p) => {
         const on = Math.round(parseFloat(amount || 0) * 100) === p;
         return (
           <button key={p} onClick={() => setAmount(String(p / 100))} data-testid={`stake-preset-${p / 100}`}
-            className={`h-9 rounded-xl text-[clamp(12px,3.6vw,15px)] font-bold whitespace-nowrap ${on ? "silver-btn" : "ghost-chip text-neutral-100"}`}>
+            className={`h-[clamp(30px,4.4dvh,36px)] rounded-xl text-[clamp(11px,3.4vw,14px)] font-bold whitespace-nowrap ${on ? "silver-btn" : "ghost-chip text-neutral-100"}`}>
             ₹{(p / 100).toLocaleString("en-IN")}
           </button>
         );
@@ -91,15 +91,15 @@ export const StakePicker = ({ amount, setAmount }) => (
 
 const SPARKS = [[14, 22], [26, 45], [8, 70], [20, 82], [80, 18], [86, 50], [74, 62], [92, 74], [60, 12], [36, 10]];
 export const ResultStage = ({ label, final, practice }) => (
-  <div className="panel shrink-0 relative overflow-hidden h-[clamp(108px,16dvh,190px)] flex items-end justify-center" data-testid="result-stage">
+  <div className="panel shrink-0 relative overflow-hidden h-[clamp(70px,12dvh,160px)] flex items-end justify-center" data-testid="result-stage">
     {SPARKS.map(([x, y], i) => (
       <span key={i} className="sparkle" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${i * 0.3}s`, width: i % 3 ? 6 : 9, height: i % 3 ? 6 : 9 }} />
     ))}
     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[92%] h-[22%] rounded-[50%] border border-white/10" />
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[58%] h-[16%] platform" />
     <div className="dome relative w-[58%] h-[84%] mb-[7%] flex flex-col items-center justify-center">
-      <div className="text-[10px] tracking-[0.2em] text-neutral-400">{practice ? "PRACTICE" : "RESULT"}</div>
-      <div className={`text-[clamp(28px,min(11vw,6dvh),60px)] font-black silver-text leading-none ${final ? "result-glow" : ""}`} data-testid="result-label">
+      <div className="text-[clamp(7px,1.1dvh,10px)] tracking-[0.2em] text-neutral-400">{practice ? "PRACTICE" : "RESULT"}</div>
+      <div className={`text-[clamp(20px,min(10vw,4.8dvh),52px)] font-black silver-text leading-none ${final ? "result-glow" : ""}`} data-testid="result-label">
         {label || "—"}
       </div>
     </div>
@@ -112,9 +112,9 @@ export const ResultChip = ({ r, size = 46, testid }) => (
 );
 
 export const RecentResults = ({ results }) => (
-  <div className="panel shrink-0 !rounded-3xl px-4 py-3" data-testid="recent-results">
-    <div className="flex items-center justify-between mb-2">
-      <span className="font-semibold text-sm">Recent Results</span>
+  <div className="panel shrink-0 !rounded-2xl px-3 py-2" data-testid="recent-results">
+    <div className="flex items-center justify-between mb-1.5">
+      <span className="font-semibold text-xs">Recent Results</span>
       <Link to="/history" className="text-neutral-400 text-xs flex items-center gap-1 hover:text-white" data-testid="view-all-results-link">
         View All <ChevronRight size={16} />
       </Link>

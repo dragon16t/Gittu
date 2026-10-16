@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, Dice5, Users, ShieldCheck, Landmark, ArrowLeftRight, FlaskConical, FileBarChart, ScrollText, Lock, LogOut, Headset } from "lucide-react";
+import { LayoutDashboard, Dice5, Users, ShieldCheck, Landmark, ArrowLeftRight, FlaskConical, FileBarChart, ScrollText, Lock, LogOut, Headset, Activity } from "lucide-react";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import DashboardTab from "./DashboardTab";
@@ -13,12 +13,14 @@ import { PracticeTab, AuditTab } from "./LogTabs";
 import ReportsTab from "./ReportsTab";
 import SecurityTab from "./SecurityTab";
 import TicketsTab from "./TicketsTab";
+import WorkloadTab from "./WorkloadTab";
 
 const TABS = [
   ["dashboard", "Dashboard", LayoutDashboard, DashboardTab], ["game", "Game Configuration", Dice5, GameTab],
   ["users", "User Management", Users, UsersTab], ["verifiers", "Payment Verifiers", ShieldCheck, VerifiersTab],
   ["accounts", "Payment Accounts", Landmark, AccountsTab], ["payments", "Deposits & Withdrawals", ArrowLeftRight, PaymentsTab],
   ["tickets", "Support Tickets", Headset, TicketsTab],
+  ["workload", "Agent Workload", Activity, WorkloadTab],
   ["practice", "Practice Preview Log", FlaskConical, PracticeTab], ["reports", "Reports", FileBarChart, ReportsTab],
   ["audit", "Audit Logs", ScrollText, AuditTab], ["security", "Security", Lock, SecurityTab],
 ];

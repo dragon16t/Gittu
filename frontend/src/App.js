@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom
 import { Toaster } from "sonner";
 import "@/App.css";
 import { SessionProvider, useSession } from "@/lib/session";
+import { AlertPoller } from "@/components/AlertPoller";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Forgot from "@/pages/auth/Forgot";
@@ -33,6 +34,7 @@ function Guard({ login }) {
 
 const Portal = ({ portal }) => (
   <SessionProvider portal={portal}>
+    <AlertPoller />
     <Outlet />
   </SessionProvider>
 );

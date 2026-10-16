@@ -55,6 +55,14 @@ async def dashboard(user=Depends(current_verifier)):
             "must_change_password": user.get("must_change_password", False)}
 
 
+@router.get("/alerts/poll")
+async def poll_alerts(user=Depends(current_verifier)):
+    rows = await db.notifications.find({"user_id": user["id"], "read": False}, P).sort("created_at", 1).to_list(10)
+    if rows:
+        await db.notifications.update_many({"id": {"$in": [r["id"] for r in rows]}}, {"$set": {"read": True}})
+    return rows
+
+
 @router.post("/online")
 async def set_online(body: OnlineIn, request: Request, user=Depends(current_verifier)):
     v = await vprofile(user)
