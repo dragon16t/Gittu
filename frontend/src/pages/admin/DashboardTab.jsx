@@ -1,7 +1,33 @@
 import { useEffect, useState } from "react";
 import { api, inr, dt } from "@/lib/api";
 import { Stat } from "@/components/common";
+import { toast } from "sonner";
+import { errMsg } from "@/lib/api";
+import { useBrand, setBrand } from "@/lib/brand";
 import { DataTable, Section, Btn } from "./ui";
+
+function BrandEditor() {
+  const brand = useBrand();
+  const [v, setV] = useState(brand);
+  useEffect(() => setV(brand), [brand]);
+  const save = async () => {
+    try {
+      const { data } = await api.put("/admin/branding", { name: v });
+      setBrand(data.name);
+      toast.success(`Platform name updated to ${data.name}`);
+    } catch (e) { toast.error(errMsg(e)); }
+  };
+  return (
+    <div className="panel !rounded-2xl p-4 flex flex-wrap items-end gap-3" data-testid="platform-name-editor">
+      <label className="flex-1 min-w-[200px]">
+        <span className="block text-xs text-neutral-400 mb-1">Platform name (shown on login, user app and admin panel)</span>
+        <input value={v} onChange={(e) => setV(e.target.value)} maxLength={24} data-testid="platform-name-input"
+          className="w-full h-10 px-3 rounded-lg bg-black border border-white/15 focus:border-white/50 outline-none text-sm font-semibold tracking-wider" />
+      </label>
+      <Btn primary className="h-10" onClick={save} disabled={!v.trim() || v.trim() === brand} data-testid="platform-name-save">Update name</Btn>
+    </div>
+  );
+}
 
 export default function DashboardTab() {
   const [d, setD] = useState(null);
@@ -22,6 +48,7 @@ export default function DashboardTab() {
   ];
   return (
     <>
+      <BrandEditor />
       <Section title="Financial overview" testid="admin-financial-overview"
         actions={<span className="text-xs text-neutral-500">{d.users} users · {d.discrepancies} ledger discrepancies</span>}>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">

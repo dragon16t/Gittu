@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from pymongo.errors import DuplicateKeyError
 
-from core import db, iso, uid, current_user, current_admin, current_verifier, audit, notify, alert, put_file, get_file
+from core import db, get_config, iso, uid, current_user, current_admin, current_verifier, audit, notify, alert, put_file, get_file
 from routes_verifier import vprofile, do_verify_deposit, do_complete_withdrawal
 
 router = APIRouter()
@@ -62,6 +62,26 @@ def public(t: dict, role: str) -> dict:
     if role == "user":
         out["events"] = [e for e in t.get("events", []) if not e.get("internal")]
     return out
+
+
+class BrandIn(BaseModel):
+    name: str
+
+
+@router.get("/branding")
+async def branding():
+    return {"name": (await get_config()).get("platform_name", "BLACKBA")}
+
+
+@router.put("/admin/branding")
+async def set_branding(body: BrandIn, request: Request, admin=Depends(current_admin)):
+    name = re.sub(r"\s+", " ", body.name).strip()
+    if not 2 <= len(name) <= 24 or not re.fullmatch(r"[\w .&'-]+", name):
+        raise HTTPException(400, "Name must be 2-24 letters, numbers, spaces or . & ' -")
+    before = (await get_config()).get("platform_name")
+    await db.config.update_one({"id": "game"}, {"$set": {"platform_name": name}}, upsert=True)
+    await audit(admin, "config.platform_name", "game", {"from": before, "to": name}, request)
+    return {"name": name}
 
 
 # ---------- user ----------

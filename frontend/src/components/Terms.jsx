@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useBrand, BrandName } from "@/lib/brand";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const SECTIONS = [
@@ -16,14 +17,17 @@ const SECTIONS = [
   ["12. Changes", "These terms may be updated at any time. Continued use after an update means you accept the revised terms."],
 ];
 
-export const TermsBody = () => (
+export const TermsBody = () => {
+  const brand = useBrand();
+  return (
   <div className="space-y-4 text-sm text-neutral-300 leading-relaxed" data-testid="terms-content">
     <p className="text-red-300 font-semibold">WARNING: Real-money game of chance. High financial risk. No refunds. Play at your own risk.</p>
     {SECTIONS.map(([h, b]) => (
-      <div key={h}><div className="font-semibold text-white mb-1">{h}</div><p>{b}</p></div>
+      <div key={h}><div className="font-semibold text-white mb-1">{h}</div><p>{b.replaceAll("BLACKBA", brand)}</p></div>
     ))}
   </div>
-);
+  );
+};
 
 export const TermsCheckbox = ({ checked, onChange, testid }) => {
   const [open, setOpen] = useState(false);
@@ -39,7 +43,7 @@ export const TermsCheckbox = ({ checked, onChange, testid }) => {
       </label>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-[#0b0b0b] border-white/10 text-white max-w-lg max-h-[85vh] overflow-y-auto" data-testid="terms-dialog">
-          <DialogHeader><DialogTitle>BLACKBA Terms & Conditions</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle><BrandName /> Terms & Conditions</DialogTitle></DialogHeader>
           <TermsBody />
           <button onClick={() => { onChange(true); setOpen(false); }} className="silver-btn rounded-full h-11 font-bold" data-testid="terms-accept-button">I AGREE</button>
         </DialogContent>

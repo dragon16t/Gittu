@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { BrandName } from "@/lib/brand";
 import { ChevronLeft } from "lucide-react";
 
 export const MobileShell = ({ title, children, testid, back = "/" }) => {
@@ -75,7 +76,7 @@ export const AuthCard = ({ title, subtitle, children, footer, testid }) => (
   <div className="relative z-10 min-h-screen flex items-center justify-center px-5 py-10" data-testid={testid}>
     <div className="w-full max-w-[380px] rise">
       <div className="text-center mb-6">
-        <div className="text-[30px] leading-none font-black silver-text tracking-[0.14em]">BLACKBA</div>
+        <div className="text-[30px] leading-none font-black silver-text tracking-[0.14em]" data-testid="brand-name"><BrandName /></div>
       </div>
       <div className="panel !rounded-3xl p-5">
         <h2 className="text-base font-bold mb-4">{title}</h2>

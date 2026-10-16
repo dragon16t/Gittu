@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { LayoutDashboard, Dice5, Users, ShieldCheck, Landmark, ArrowLeftRight, FileBarChart, ScrollText, Lock, LogOut, Headset, Activity } from "lucide-react";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
+import { BrandName } from "@/lib/brand";
 import DashboardTab from "./DashboardTab";
 import GameTab from "./GameTab";
 import UsersTab from "./UsersTab";
@@ -36,7 +37,7 @@ export default function AdminPanel() {
       <aside className="lg:w-64 lg:min-h-screen border-b lg:border-b-0 lg:border-r border-white/10 bg-black/60 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen">
         <div className="px-5 py-5 flex lg:block items-center justify-between">
           <div>
-            <div className="text-xl font-black silver-text tracking-widest">BLACKBA</div>
+            <div className="text-xl font-black silver-text tracking-widest" data-testid="admin-brand-name"><BrandName /></div>
             <div className="text-[11px] text-neutral-500 uppercase tracking-[0.2em]">Admin · {user?.username}</div>
           </div>
           <button onClick={logout} className="lg:hidden ghost-chip rounded-full h-9 w-9 flex items-center justify-center" data-testid="admin-logout-mobile"><LogOut size={15} /></button>

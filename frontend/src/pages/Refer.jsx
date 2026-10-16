@@ -2,14 +2,16 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Copy, Share2 } from "lucide-react";
 import { api, inr, dt } from "@/lib/api";
+import { useBrand } from "@/lib/brand";
 import { MobileShell, Badge, Empty, SilverButton } from "@/components/common";
 
 export default function Refer() {
   const [d, setD] = useState(null);
+  const brand = useBrand();
   useEffect(() => { api.get("/referrals").then(({ data }) => setD(data)); }, []);
   const link = d ? `${window.location.origin}/register?ref=${d.code}` : "";
   const share = async () => {
-    const text = `Join BLACKBA with my code ${d.code}: ${link}`;
+    const text = `Join ${brand} with my code ${d.code}: ${link}`;
     if (navigator.share) navigator.share({ text }).catch(() => {});
     else { navigator.clipboard?.writeText(text); toast.success("Invite copied"); }
   };
