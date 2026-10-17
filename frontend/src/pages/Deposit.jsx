@@ -127,19 +127,9 @@ export default function Deposit() {
                 className={`h-11 rounded-xl font-bold text-sm ${amount === String(p) ? "silver-btn" : "ghost-chip"}`}>₹{p.toLocaleString("en-IN")}</button>
             ))}
           </div>
-          <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-transparent divide-y divide-white/5" data-testid="deposit-rules">
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">Minimum deposit</span>
-              <span className="text-sm font-extrabold silver-text">₹100</span>
-            </div>
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">Wagering</span>
-              <span className="text-[12px] text-neutral-200"><b className="text-white">1×</b> the deposit before withdrawal</span>
-            </div>
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">Pay within</span>
-              <span className="text-[12px] text-neutral-200"><b className="text-white">10 min</b> of getting the QR</span>
-            </div>
+          <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-transparent flex items-center justify-between px-4 py-3" data-testid="deposit-rules">
+            <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">Minimum deposit</span>
+            <span className="text-sm font-extrabold silver-text">₹100</span>
           </div>
           {unavailable && <div className="text-sm text-red-300 border border-red-500/30 rounded-xl p-3" data-testid="deposit-unavailable">{unavailable}</div>}
           <SilverButton onClick={assign} disabled={busy} data-testid="deposit-continue-button">{busy ? "ASSIGNING…" : "CONTINUE"}</SilverButton>
