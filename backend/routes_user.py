@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 import re
 import asyncio
 
@@ -9,7 +9,7 @@ from pymongo.errors import DuplicateKeyError
 from core import (db, now, iso, uid, current_user, get_config, ledger_debit, ledger_credit, audit, notify, verify_pw, enc, dec, mask,
                   get_file, check_rate, hit_rate)
 from game import round_exposure, parse, ensure_commitments, ROUND_SECONDS, REVEAL_SECONDS, FAIR_AHEAD
-from payments import eligible_deposit_account, assign_withdrawal, OPEN_WITHDRAW
+from payments import eligible_deposit_account, assign_withdrawal, OPEN_WITHDRAW, DEPOSIT_WINDOW_MIN, UTR_GRACE_MIN
 from promotions import consume_wagering, MIN_WITHDRAWAL
 
 router = APIRouter()
@@ -211,6 +211,7 @@ async def notifications(user=Depends(current_user)):
 def public_deposit(d: dict, acc: dict = None) -> dict:
     out = {k: d.get(k) for k in ("id", "amount", "status", "utr", "created_at", "submitted_at", "verified_at",
                                  "reject_reason", "account_id")}
+    out["expires_at"] = d.get("expires_at") or iso(datetime.fromisoformat(d["created_at"]) + timedelta(minutes=DEPOSIT_WINDOW_MIN))
     if acc:
         out.update(upi_id=acc["upi_id"], account_name=acc["name"], has_qr=bool(acc.get("qr_path")))
     return out
@@ -227,14 +228,15 @@ async def deposit_assign(body: DepositIn, user=Depends(current_user)):
     await hit_rate(f"deposit:{user['id']}")
     v, acc = pick
     d = {"id": uid(), "user_id": user["id"], "username": user["username"], "amount": body.amount, "status": "initiated",
-         "account_id": acc["id"], "verifier_id": v["id"], "utr": None, "created_at": iso()}
+         "account_id": acc["id"], "verifier_id": v["id"], "utr": None, "created_at": iso(),
+         "expires_at": iso(now() + timedelta(minutes=DEPOSIT_WINDOW_MIN))}
     await db.deposits.insert_one(dict(d))
     return public_deposit(d, acc)
 
 
 @router.get("/deposits/active")
 async def active_deposit(user=Depends(current_user)):
-    since = iso(now() - timedelta(minutes=30))
+    since = iso(now() - timedelta(minutes=DEPOSIT_WINDOW_MIN))
     d = await db.deposits.find_one({"user_id": user["id"], "status": "initiated", "created_at": {"$gte": since}}, P,
                                    sort=[("created_at", -1)])
     acc = await db.payment_accounts.find_one({"id": d["account_id"]}, P) if d else None
@@ -259,7 +261,8 @@ async def deposit_submit(dep_id: str, body: UtrIn, request: Request, user=Depend
     if await db.deposits.find_one({"utr": utr, "status": {"$ne": "rejected"}}):
         raise HTTPException(400, "This UTR has already been submitted")
     try:
-        res = await db.deposits.update_one({"id": dep_id, "user_id": user["id"], "status": "initiated"},
+        res = await db.deposits.update_one({"id": dep_id, "user_id": user["id"], "status": {"$in": ["initiated", "expired"]},
+                                            "created_at": {"$gte": iso(now() - timedelta(minutes=UTR_GRACE_MIN))}},
                                            {"$set": {"utr": utr, "status": "pending", "submitted_at": iso()}})
     except DuplicateKeyError:
         raise HTTPException(400, "This UTR has already been submitted")

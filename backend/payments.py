@@ -10,6 +10,8 @@ from core import db, now, iso, uid, alert, notify, get_config, NOID, log
 OPEN_DEPOSIT = ["initiated", "pending"]
 OPEN_WITHDRAW = ["pending", "approved", "processing"]
 OFFLINE_FALLBACK_MIN = 10
+DEPOSIT_WINDOW_MIN = 10
+UTR_GRACE_MIN = 30
 
 
 def parse_iso(s: str):
@@ -21,6 +23,8 @@ async def withdrawal_dispatcher():
     while True:
         try:
             await dispatch_withdrawals()
+            await db.deposits.update_many({"status": "initiated", "created_at": {"$lt": iso(now() - timedelta(minutes=DEPOSIT_WINDOW_MIN))}},
+                                          {"$set": {"status": "expired", "expired_at": iso()}})
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -40,7 +44,7 @@ async def dispatch_withdrawals():
 
 
 async def eligible_deposit_account(amount: int):
-    since = iso(now() - timedelta(minutes=30))
+    since = iso(now() - timedelta(minutes=DEPOSIT_WINDOW_MIN))
     verifiers = {v["id"]: v for v in await db.verifiers.find(
         {"status": "active", "online": True, "perm_deposit": True}, NOID).to_list(500)}
     if not verifiers:

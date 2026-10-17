@@ -32,6 +32,36 @@ const UpiPay = ({ dep }) => {
   );
 };
 
+const DepositTimer = ({ expiresAt }) => {
+  const [left, setLeft] = useState(() => new Date(expiresAt).getTime() - Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setLeft(new Date(expiresAt).getTime() - Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [expiresAt]);
+  const s = Math.max(0, Math.floor(left / 1000));
+  const pct = Math.min(100, (s / 600) * 100);
+  const urgent = s <= 60;
+  if (s === 0) return (
+    <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-center" data-testid="deposit-expired">
+      <div className="text-sm font-bold text-red-300">Payment window closed</div>
+      <div className="text-[11px] text-neutral-400 mt-0.5">Already paid? You can still submit your UTR below for the next 20 minutes. Otherwise start a new deposit.</div>
+    </div>
+  );
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${urgent ? "border-red-400/40 bg-red-500/10" : "border-white/15 bg-white/5"}`} data-testid="deposit-timer">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">Pay within</span>
+        <span className={`mono text-xl font-black ${urgent ? "text-red-300" : "silver-text"}`} data-testid="deposit-timer-value">
+          {String(Math.floor(s / 60)).padStart(2, "0")}:{String(s % 60).padStart(2, "0")}
+        </span>
+      </div>
+      <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+        <div className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${urgent ? "bg-red-400" : "bg-gradient-to-r from-white to-neutral-400"}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+};
+
 export default function Deposit() {
   const [amount, setAmount] = useState("500");
   const [dep, setDep] = useState(null);
@@ -103,6 +133,7 @@ export default function Deposit() {
         </div>
       ) : (
         <div className="panel p-5 space-y-4 rise" data-testid="deposit-assigned">
+          <DepositTimer expiresAt={dep.expires_at} />
           <div className="text-center">
             <div className="text-neutral-400 text-sm">Pay exactly</div>
             <div className="text-2xl font-black silver-text" data-testid="deposit-assigned-amount">{inr(dep.amount)}</div>
@@ -137,7 +168,7 @@ export default function Deposit() {
             </div>
             <div className="text-right space-y-1">
               <Badge status={d.status} />
-              {d.status !== "verified" && d.status !== "cancelled" && (
+              {!["verified", "cancelled", "expired"].includes(d.status) && (
                 <Link to={`/support?kind=deposit&ref=${d.id}`} className="block text-[11px] underline text-neutral-400" data-testid={`deposit-ticket-${d.id.slice(0, 8)}`}>Not credited? Raise ticket</Link>
               )}
             </div>

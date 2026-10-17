@@ -87,6 +87,10 @@ Later additions:
   - ROOT CAUSE of timer resets / instant results: every backend instance ran its own engine, and recover() force-closed the live round. Fix: a Mongo lease lock (db.locks id=engine, 15s lease, renewed every 4s, game.INSTANCE) so only ONE engine runs. recover() now waits for an open round's closes_at instead of closing it early. Verified: a second engine never led, and rounds close at exactly 30.0s
   - OutcomeCard overlay (gold WIN card with +amount and stake / muted LOSS card with −stake) replaces the result toasts. Auto-closes after 3.6s/2.8s, tap to close
   - Deposit presets 100/300/400/500/1000/2000/5000 (minimum ₹100 already enforced by the server)
+- Iteration 14 (deposit timer):
+  - Deposits get expires_at = created + 10 min (DEPOSIT_WINDOW_MIN). The dispatcher loop (every 5s) marks stale "initiated" deposits as "expired". Verifier load, /deposits/active and resume all use the 10-min window
+  - UTR can still be submitted on an initiated/expired deposit up to 30 min after creation (UTR_GRACE_MIN), so players who paid late don't lose money
+  - Deposit QR screen: "Pay within MM:SS" countdown with a progress bar (turns red in the last 60s), and a "Payment window closed" note when it reaches zero
 
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)
