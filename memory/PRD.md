@@ -93,6 +93,7 @@ Later additions:
   - Deposit QR screen: "Pay within MM:SS" countdown with a progress bar (turns red in the last 60s), and a "Payment window closed" note when it reaches zero
 - Iteration 15: Player login lasts 30 days (core.USER_SESSION_HOURS = 720; cookie Max-Age 2592000, server session still revocable). Admin and verifier sessions stay at 12h
 - Iteration 16 (payout safety): game.PAYOUT_BPS = 195 is hard-coded. payout_for() ignores the DB/config value, so a win is ALWAYS stake × 1.95. New rounds store 195, and /game/state reports 195. game.audit_loop (every 10 min, leader only) raises admin alerts payout_mismatch / double_win_credit. Preview audit: 47 wins, 0 wrong, 0 double credits, 0 wallet/ledger mismatches. A production read-only check was queued with the deployer (user reported ₹500 bet → ₹1950)
+- Iteration 17 (wallet tamper-proofing): the balance changes ONLY through the core ledger functions (unique key per entry). The 10 callers are bet_stake, bet_win, promotion (coupon), manual_credit/debit (admin), deposit (verifier verify), withdraw_reserve/refund/complete. Every amount is validated on the server (stake min/max, deposit ₹100–₹1L, withdrawal min, admin > 0). audit_payouts also checks every wallet balance equals the sum of its ledger and raises a "wallet_mismatch" admin alert (de-duplicated). Preview: 44 wallets, 0 mismatches
 
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)

@@ -30,6 +30,12 @@ async def audit_payouts():
                                      {"$match": {"n": {"$gt": 1}}}]).to_list(50)
     for d in dup:
         await alert("double_win_credit", f"Bet {str(d['_id'])[:8]} credited {d['n']} times", str(d["_id"]))
+    sums = {r["_id"]: r["s"] async for r in db.ledger.aggregate([{"$group": {"_id": "$user_id", "s": {"$sum": "$amount"}}}])}
+    async for w in db.wallets.find({}, {"_id": 0, "user_id": 1, "balance": 1}):
+        if sums.get(w["user_id"], 0) != w["balance"]:
+            key = f"wallet:{w['user_id']}:{w['balance']}"
+            if not await db.admin_alerts.find_one({"ref": key}):
+                await alert("wallet_mismatch", f"Wallet {w['user_id'][:8]} balance {w['balance']} ≠ ledger {sums.get(w['user_id'], 0)} (possible tampering)", key)
 
 
 async def audit_loop():
