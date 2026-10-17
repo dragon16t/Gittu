@@ -6,7 +6,7 @@ import { api, errMsg, inr, inr0, newKey, toPaise } from "@/lib/api";
 import { TopBar, CountdownRing, SideCircle, StakePicker, ResultStage, RecentResults } from "@/components/game/GameParts";
 import { useMusic, useRevealAnimation } from "@/components/game/hooks";
 import { Confetti } from "@/components/game/Confetti";
-import { playBetSound, playWinSound, unlockAudio } from "@/lib/sfx";
+import { playBetSound, playWinSound, playTickSound, unlockAudio } from "@/lib/sfx";
 
 const WinTicker = ({ winners }) => {
   if (!winners.length) return <div className="h-[22px] shrink-0" />;
@@ -111,6 +111,15 @@ export default function Game() {
   const bettingOpen = round?.status === "betting" && !holding && remaining > 0;
   const mult = ((state?.config?.multiplier_bps || 195) / 100).toFixed(2);
   const statusLabel = state?.paused ? "Paused" : bettingOpen ? "Next round" : holding ? "Result" : round ? "Closed" : last ? "Result" : "Starting";
+  const secLeft = bettingOpen ? Math.ceil(remaining) : 0;
+  const ticked = useRef(null);
+  useEffect(() => {
+    const key = `${round?.id}:${secLeft}`;
+    if (secLeft >= 1 && secLeft <= 5 && ticked.current !== key) {
+      ticked.current = key;
+      playTickSound(secLeft === 1);
+    }
+  }, [secLeft, round?.id]);
 
   const placeBet = async () => {
     unlockAudio();

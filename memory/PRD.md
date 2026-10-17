@@ -63,6 +63,7 @@ Later additions:
   - The whole document scrolls (html/body no longer overflow-hidden). Header and bet bar are sticky, overflow-x: clip
   - Timer: freezes at 00:00 ("Closed", then "Result") until the reveal animation ends. The server holds the result 2s (RESULT_HOLD_SECONDS) before the next round. A missed reveal (tab hidden) still shows the correct last result
   - Bet bar has a fixed-height hint/bets line, so it no longer jumps when a bet is placed. The input is blurred after a bet so the keyboard closes
+  - Countdown tick: soft 1046Hz tick at 5-4-3-2s and a brighter 1568Hz tick at 1s. Respects the music mute (sfx.playTickSound)
 
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)

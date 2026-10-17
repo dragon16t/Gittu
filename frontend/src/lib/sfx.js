@@ -38,6 +38,13 @@ export const playBetSound = () => {
   } catch {}
 };
 
+export const playTickSound = (last = false) => {
+  if (muted()) return;
+  try {
+    tone(last ? 1568 : 1046.5, 0, 0.07, "sine", last ? 0.14 : 0.09);
+  } catch {}
+};
+
 export const playWinSound = () => {
   if (muted()) return;
   try {
