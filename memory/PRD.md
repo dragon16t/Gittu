@@ -64,6 +64,10 @@ Later additions:
   - Timer: freezes at 00:00 ("Closed", then "Result") until the reveal animation ends. The server holds the result 2s (RESULT_HOLD_SECONDS) before the next round. A missed reveal (tab hidden) still shows the correct last result
   - Bet bar has a fixed-height hint/bets line, so it no longer jumps when a bet is placed. The input is blurred after a bet so the keyboard closes
   - Countdown tick: soft 1046Hz tick at 5-4-3-2s and a brighter 1568Hz tick at 1s. Respects the music mute (sfx.playTickSound)
+- Iteration 9 (deposit speed):
+  - eligible_deposit_account: 3 queries in total (verifiers, aggregated loads, accounts) instead of 2 per verifier. Picks the online verifier with the LEAST open deposits; random (SystemRandom) among ties; at-capacity verifiers skipped; then a random account of that verifier
+  - In-memory file cache (300 entries) in core.get_file/put_file, QR cache warmed at startup (server.warm_qr_cache). The deposit QR response has Cache-Control 24h
+  - Deposit page shows UPI details immediately while the QR loads in the background (pulse placeholder)
 
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)

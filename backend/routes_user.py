@@ -219,7 +219,7 @@ async def deposit_qr(dep_id: str, user=Depends(current_user)):
     if not acc or not acc.get("qr_path"):
         raise HTTPException(404, "QR not available")
     data, ct = await get_file(acc["qr_path"])
-    return Response(content=data, media_type=ct)
+    return Response(content=data, media_type=ct, headers={"Cache-Control": "private, max-age=86400"})
 
 
 @router.post("/deposits/{dep_id}/submit")

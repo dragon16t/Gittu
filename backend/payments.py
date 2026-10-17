@@ -12,17 +12,26 @@ OPEN_WITHDRAW = ["pending", "approved", "processing"]
 
 async def eligible_deposit_account(amount: int):
     since = iso(now() - timedelta(minutes=30))
-    verifiers = await db.verifiers.find({"status": "active", "online": True, "perm_deposit": True}, NOID).to_list(500)
-    candidates = []
-    for v in verifiers:
-        load = await db.deposits.count_documents({"verifier_id": v["id"], "$or": [
-            {"status": "pending"}, {"status": "initiated", "created_at": {"$gte": since}}]})
-        if load >= v.get("deposit_capacity", 0):
-            continue
-        accs = await db.payment_accounts.find({"verifier_id": v["id"], "status": "active",
-                                               "deposit_limit": {"$gte": amount}}, NOID).to_list(50)
-        candidates += [(v, a) for a in accs]
-    return random.SystemRandom().choice(candidates) if candidates else None
+    verifiers = {v["id"]: v for v in await db.verifiers.find(
+        {"status": "active", "online": True, "perm_deposit": True}, NOID).to_list(500)}
+    if not verifiers:
+        return None
+    loads = {r["_id"]: r["n"] for r in await db.deposits.aggregate([
+        {"$match": {"verifier_id": {"$in": list(verifiers)}, "$or": [
+            {"status": "pending"}, {"status": "initiated", "created_at": {"$gte": since}}]}},
+        {"$group": {"_id": "$verifier_id", "n": {"$sum": 1}}}]).to_list(500)}
+    accs = await db.payment_accounts.find({"verifier_id": {"$in": list(verifiers)}, "status": "active",
+                                           "deposit_limit": {"$gte": amount}}, NOID).to_list(1000)
+    by_v = {}
+    for a in accs:
+        if loads.get(a["verifier_id"], 0) < verifiers[a["verifier_id"]].get("deposit_capacity", 0):
+            by_v.setdefault(a["verifier_id"], []).append(a)
+    if not by_v:
+        return None
+    least = min(loads.get(vid, 0) for vid in by_v)
+    rng = random.SystemRandom()
+    vid = rng.choice([vid for vid in by_v if loads.get(vid, 0) == least])
+    return verifiers[vid], rng.choice(by_v[vid])
 
 
 async def assign_withdrawal(w: dict, exclude: list = None) -> bool:

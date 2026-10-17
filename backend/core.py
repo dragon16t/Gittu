@@ -281,15 +281,29 @@ def _get(path):
 async def put_file(folder: str, filename: str, data: bytes, ctype: str, owner: str) -> str:
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
     res = await asyncio.to_thread(_put, f"{APP_NAME}/{folder}/{uid()}.{ext}", data, ctype)
+    _cache_put(res["path"], (data, ctype))
     await db.files.insert_one({"id": uid(), "storage_path": res["path"], "original_filename": filename,
                                "content_type": ctype, "size": res.get("size"), "owner": owner,
                                "is_deleted": False, "created_at": iso()})
     return res["path"]
 
 
+_FILE_CACHE: dict = {}
+
+
+def _cache_put(path: str, item):
+    if len(_FILE_CACHE) >= 300:
+        _FILE_CACHE.pop(next(iter(_FILE_CACHE)))
+    _FILE_CACHE[path] = item
+
+
 async def get_file(path: str):
+    if path in _FILE_CACHE:
+        return _FILE_CACHE[path]
     rec = await db.files.find_one({"storage_path": path, "is_deleted": False})
     if not rec:
         raise HTTPException(404, "File not found")
     data, ct = await asyncio.to_thread(_get, path)
-    return data, rec.get("content_type") or ct
+    item = (data, rec.get("content_type") or ct)
+    _cache_put(path, item)
+    return item

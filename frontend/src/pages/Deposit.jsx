@@ -23,8 +23,9 @@ export default function Deposit() {
     setUnavailable("");
     try {
       const { data } = await api.post("/deposits/assign", { amount: toPaise(amount) });
+      setQr(data.has_qr ? "loading" : null);
       setDep(data);
-      setQr(data.has_qr ? await blobUrl(`/deposits/${data.id}/qr`).catch(() => null) : null);
+      if (data.has_qr) blobUrl(`/deposits/${data.id}/qr`).then(setQr).catch(() => setQr(null));
     } catch (e) {
       if (e?.response?.status === 503) setUnavailable(errMsg(e));
       else toast.error(errMsg(e));
@@ -67,7 +68,8 @@ export default function Deposit() {
             <div className="text-2xl font-black silver-text" data-testid="deposit-assigned-amount">{inr(dep.amount)}</div>
           </div>
           <div className="mx-auto w-56 h-56 rounded-2xl bg-white flex items-center justify-center overflow-hidden" data-testid="deposit-qr">
-            {qr ? <img src={qr} alt="UPI QR" className="w-full h-full object-contain" /> : <span className="text-neutral-500 text-sm px-6 text-center">Pay using the UPI ID below</span>}
+            {qr === "loading" ? <div className="w-40 h-40 rounded-xl bg-neutral-200 animate-pulse" data-testid="deposit-qr-loading" />
+              : qr ? <img src={qr} alt="UPI QR" className="w-full h-full object-contain" /> : <span className="text-neutral-500 text-sm px-6 text-center">Pay using the UPI ID below</span>}
           </div>
           <button onClick={() => { navigator.clipboard?.writeText(dep.upi_id); toast.success("UPI ID copied"); }}
             className="field w-full h-14 px-4 flex items-center justify-between" data-testid="deposit-upi-id">

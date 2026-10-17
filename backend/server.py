@@ -10,7 +10,7 @@ from fastapi import FastAPI, APIRouter, Request  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
 from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 
-from core import db, client, init_storage, log  # noqa: E402
+from core import db, client, init_storage, log, get_file  # noqa: E402
 from game import engine_loop  # noqa: E402
 import routes_auth  # noqa: E402
 import routes_user  # noqa: E402
@@ -56,6 +56,14 @@ async def security_mw(request: Request, call_next):
 
 
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=ORIGINS, allow_methods=["*"], allow_headers=["*"])
+
+
+async def warm_qr_cache():
+    async for a in db.payment_accounts.find({"status": "active", "qr_path": {"$ne": None}}, {"_id": 0, "qr_path": 1}):
+        try:
+            await get_file(a["qr_path"])
+        except Exception:
+            pass
 
 
 async def create_indexes():
@@ -113,6 +121,7 @@ async def startup():
     app.state.engine = asyncio.create_task(engine_loop())
     app.state.bonus = asyncio.create_task(promotions.bonus_loop())
     app.state.visitors = asyncio.create_task(presence.snapshot_loop())
+    app.state.qr_warm = asyncio.create_task(warm_qr_cache())
 
 
 @app.on_event("shutdown")
