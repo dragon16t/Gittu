@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { api, errMsg, inr, dt, toPaise, blobUrl } from "@/lib/api";
 import { MobileShell, Field, SilverButton, Badge, Empty } from "@/components/common";
 
-const PRESETS = [100, 300, 400, 500, 1000, 2000, 5000];
+const PRESETS = [100, 300, 400, 500, 1000, 2000, 5000, 10000];
 
 const upiQuery = (dep) => new URLSearchParams({
   pa: dep.upi_id, pn: dep.account_name || "Payee", am: (dep.amount / 100).toFixed(2), cu: "INR", tn: `Deposit ${dep.id.slice(0, 8)}`,
@@ -127,7 +127,20 @@ export default function Deposit() {
                 className={`h-11 rounded-xl font-bold text-sm ${amount === String(p) ? "silver-btn" : "ghost-chip"}`}>₹{p.toLocaleString("en-IN")}</button>
             ))}
           </div>
-          <p className="text-xs text-neutral-500">Minimum ₹100. Deposits carry a 1× wagering requirement before withdrawal.</p>
+          <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-transparent divide-y divide-white/5" data-testid="deposit-rules">
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">Minimum deposit</span>
+              <span className="text-sm font-extrabold silver-text">₹100</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">Wagering</span>
+              <span className="text-[12px] text-neutral-200"><b className="text-white">1×</b> the deposit before withdrawal</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">Pay within</span>
+              <span className="text-[12px] text-neutral-200"><b className="text-white">10 min</b> of getting the QR</span>
+            </div>
+          </div>
           {unavailable && <div className="text-sm text-red-300 border border-red-500/30 rounded-xl p-3" data-testid="deposit-unavailable">{unavailable}</div>}
           <SilverButton onClick={assign} disabled={busy} data-testid="deposit-continue-button">{busy ? "ASSIGNING…" : "CONTINUE"}</SilverButton>
         </div>
