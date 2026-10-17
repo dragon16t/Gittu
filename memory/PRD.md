@@ -82,6 +82,7 @@ Later additions:
   - Bet % buttons 100/75/50/25 under the stake presets (floor to ₹, capped at max stake)
   - Deposit page always opens on the amount screen. An unfinished deposit shows a "Continue" card. A new deposit cancels the old one. "Change amount / Cancel" on the QR screen
   - Deposits go ONLY to an online verifier's account whose QR file exists. Admin Accounts tab shows "Missing · re-upload" for broken QRs
+  - "Pay with UPI app" on the deposit QR screen: upi://pay deep link (pa, pn, am, cu=INR, tn="Deposit <id8>") plus direct GPay (tez://upi/pay), PhonePe (phonepe://pay) and Paytm (paytmmp://pay) buttons
 
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)

@@ -1,11 +1,36 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Copy, Headset } from "lucide-react";
+import { Copy, Headset, Smartphone } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, errMsg, inr, dt, toPaise, blobUrl } from "@/lib/api";
 import { MobileShell, Field, SilverButton, Badge, Empty } from "@/components/common";
 
 const PRESETS = [500, 1000, 2000, 5000];
+
+const upiQuery = (dep) => new URLSearchParams({
+  pa: dep.upi_id, pn: dep.account_name || "Payee", am: (dep.amount / 100).toFixed(2), cu: "INR", tn: `Deposit ${dep.id.slice(0, 8)}`,
+}).toString().replace(/\+/g, "%20");
+
+const APPS = [
+  ["GPay", "tez://upi/pay"], ["PhonePe", "phonepe://pay"], ["Paytm", "paytmmp://pay"],
+];
+
+const UpiPay = ({ dep }) => {
+  const q = upiQuery(dep);
+  return (
+    <div className="space-y-2" data-testid="upi-pay-section">
+      <a href={`upi://pay?${q}`} className="silver-btn w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-extrabold text-sm tracking-wide" data-testid="upi-pay-button">
+        <Smartphone size={17} /> PAY WITH UPI APP · {inr(dep.amount)}
+      </a>
+      <div className="grid grid-cols-3 gap-2">
+        {APPS.map(([n, base]) => (
+          <a key={n} href={`${base}?${q}`} className="ghost-chip h-10 rounded-xl flex items-center justify-center text-xs font-bold text-neutral-200" data-testid={`upi-pay-${n.toLowerCase()}`}>{n}</a>
+        ))}
+      </div>
+      <p className="text-[11px] text-neutral-500 text-center">Amount and UPI ID are pre-filled. After paying, come back and enter the UTR below.</p>
+    </div>
+  );
+};
 
 export default function Deposit() {
   const [amount, setAmount] = useState("500");
@@ -91,6 +116,7 @@ export default function Deposit() {
             <span className="mono">{dep.upi_id}</span><Copy size={16} />
           </button>
           <div className="text-xs text-neutral-500">Account: {dep.account_name}</div>
+          <UpiPay dep={dep} />
           <Field label="UTR / Reference number" value={utr} onChange={(e) => setUtr(e.target.value.toUpperCase())} testid="deposit-utr-input" />
           <SilverButton onClick={submit} disabled={busy || utr.length < 6} data-testid="submit-deposit-button">SUBMIT DEPOSIT REQUEST</SilverButton>
           <button onClick={() => { cancelDep(dep); setAmount(String(dep.amount / 100)); setDep(null); setQr(null); load(); }} className="w-full text-sm text-neutral-400" data-testid="deposit-cancel-button">Change amount / Cancel</button>
