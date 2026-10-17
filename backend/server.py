@@ -131,6 +131,8 @@ async def create_indexes():
 async def startup():
     await create_indexes()
     await promotions.credit_pending_referral_coupons()
+    if not await db.config.find_one({"id": "game", "max_stake_v2": True}):
+        await db.config.update_one({"id": "game"}, {"$set": {"max_stake": 5000000, "max_stake_v2": True}}, upsert=True)
     await routes_admin.seed_admin()
     try:
         await asyncio.to_thread(init_storage)

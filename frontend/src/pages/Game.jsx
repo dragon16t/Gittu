@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Mail, Gift, Wallet as WalletIcon, Headset, Trophy } from "lucide-react";
+import { Mail, Gift, Wallet as WalletIcon, Headset, Trophy, Lock } from "lucide-react";
 import { api, errMsg, inr, inr0, newKey, toPaise } from "@/lib/api";
 import { TopBar, CountdownRing, SideCircle, StakePicker, ResultStage, RecentResults } from "@/components/game/GameParts";
 import { useMusic, useRevealAnimation } from "@/components/game/hooks";
@@ -124,7 +124,8 @@ export default function Game() {
   const remaining = round?.status === "betting" && !holding ? (new Date(round.closes_at).getTime() - serverNow) / 1000 : 0;
   const bettingOpen = round?.status === "betting" && !holding && remaining > 0;
   const mult = ((state?.config?.multiplier_bps || 195) / 100).toFixed(2);
-  const statusLabel = state?.paused ? "Paused" : bettingOpen ? "Next round" : holding ? "Result" : round ? "Closed" : last ? "Result" : "Starting";
+  const myBets = state?.my_bets || [];
+  const statusLabel = state?.paused ? "Paused" : myBets.length > 0 && !bettingOpen ? "BET LOCKED" : bettingOpen && remaining <= 5 ? "LAST CALL" : myBets.length > 0 ? "BET PLACED" : bettingOpen ? "Next round" : holding ? "Result" : round ? "Closed" : last ? "Result" : "Starting";
   const secLeft = bettingOpen ? Math.ceil(remaining) : 0;
   const ticked = useRef(null);
   useEffect(() => {
@@ -155,7 +156,6 @@ export default function Game() {
     }
   };
 
-  const myBets = state?.my_bets || [];
   return (
     <div className="relative z-10 mx-auto max-w-[480px] min-h-[100dvh] flex flex-col" data-testid="game-page">
       <header className="sticky top-0 shrink-0 z-30 px-4 safe-top pb-1.5 bg-black/80 backdrop-blur-xl border-b border-white/5" data-testid="sticky-header">
@@ -181,9 +181,12 @@ export default function Game() {
         <div className="relative shrink-0 panel !rounded-[24px] px-4 py-[clamp(6px,1.2dvh,12px)] overflow-hidden" data-testid="game-board">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             <span className="text-[10px] text-neutral-500 mono justify-self-start" data-testid="round-number">Round #{round?.number || last?.number || "—"}</span>
-            <CountdownRing label={statusLabel} value={bettingOpen ? fmtTime(remaining) : "00:00"}
+            <CountdownRing label={statusLabel} value={bettingOpen ? fmtTime(remaining) : "00:00"} locked={myBets.length > 0}
+              hurry={bettingOpen && remaining <= 5}
               progress={bettingOpen ? remaining / (state?.config?.round_seconds || 30) : 0} />
-            <span className={`text-[10px] justify-self-end ${bettingOpen ? "text-emerald-400" : "text-neutral-500"}`} data-testid="round-status">{bettingOpen ? "Betting open" : "Betting closed"}</span>
+            <span className={`text-[10px] justify-self-end font-semibold ${myBets.length > 0 ? "text-emerald-400" : bettingOpen ? "text-emerald-400" : "text-neutral-500"}`} data-testid="round-status">
+              {myBets.length > 0 && !bettingOpen ? <span className="inline-flex items-center gap-1"><Lock size={10} />Bet locked</span> : myBets.length > 0 ? "Bet placed" : bettingOpen ? "Betting open" : "Betting closed"}
+            </span>
           </div>
           <div className="flex items-center justify-around relative mt-[clamp(2px,0.8dvh,10px)] py-[10px]">
             <SideCircle side="ODD" multiplier={mult} active={side === "ODD"} dim={side === "EVEN"} onClick={() => setSide("ODD")} />

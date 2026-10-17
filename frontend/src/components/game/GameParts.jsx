@@ -27,23 +27,24 @@ export const TopBar = ({ balance, music, onToggleMusic }) => (
   </div>
 );
 
-export const CountdownRing = ({ label, value, progress }) => {
+export const CountdownRing = ({ label, value, progress, locked, hurry }) => {
   const r = 66;
   const c = 2 * Math.PI * r;
+  const grad = locked ? "ringgreen" : hurry ? "ringhot" : "ringg";
   return (
-    <div className="notch flex flex-col items-center justify-center" data-testid="round-countdown">
+    <div className={`notch flex flex-col items-center justify-center ${hurry ? "ring-hurry" : ""} ${locked ? "ring-locked" : ""}`} data-testid="round-countdown">
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 150 150">
-        <circle cx="75" cy="75" r={r} stroke="rgba(255,255,255,0.08)" strokeWidth="4" fill="none" />
-        <circle cx="75" cy="75" r={r} stroke="url(#ringg)" strokeWidth="4" fill="none" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - progress)} style={{ transition: "stroke-dashoffset 0.95s linear" }} />
+        <circle cx="75" cy="75" r={r} stroke={locked ? "rgba(52,211,153,0.18)" : "rgba(255,255,255,0.08)"} strokeWidth="4" fill="none" />
+        <circle cx="75" cy="75" r={r} stroke={`url(#${grad})`} strokeWidth={locked ? 5 : 4} fill="none" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={c * (1 - (locked && progress === 0 ? 1 : progress))} style={{ transition: "stroke-dashoffset 0.95s linear, stroke-width 0.3s" }} />
         <defs>
-          <linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#ffffff" /><stop offset="100%" stopColor="#8a8a8a" />
-          </linearGradient>
+          <linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#ffffff" /><stop offset="100%" stopColor="#8a8a8a" /></linearGradient>
+          <linearGradient id="ringgreen" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6ee7b7" /><stop offset="100%" stopColor="#059669" /></linearGradient>
+          <linearGradient id="ringhot" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#fde68a" /><stop offset="100%" stopColor="#f87171" /></linearGradient>
         </defs>
       </svg>
-      <div className="relative text-[clamp(7px,1.1dvh,9px)] text-neutral-400 leading-none" data-testid="round-status-label">{label}</div>
-      <div className="relative text-[clamp(14px,2.5dvh,24px)] font-extrabold leading-tight mono tracking-tight" data-testid="round-countdown-value">{value}</div>
+      <div className={`relative text-[clamp(7px,1.1dvh,9px)] leading-none font-bold tracking-wider ${locked ? "text-emerald-300" : hurry ? "text-amber-200" : "text-neutral-400"}`} data-testid="round-status-label">{label}</div>
+      <div className={`relative text-[clamp(14px,2.5dvh,24px)] font-extrabold leading-tight mono tracking-tight ${hurry ? "beat text-amber-100" : ""} ${locked && !hurry ? "text-emerald-100" : ""}`} data-testid="round-countdown-value">{value}</div>
     </div>
   );
 };

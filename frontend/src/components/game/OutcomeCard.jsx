@@ -23,7 +23,7 @@ export const OutcomeCard = ({ data, onClose }) => {
           <div className="mt-2 text-[11px] uppercase tracking-[0.2em] text-neutral-400">Round #{round} · Result <b className="text-white">{result}</b></div>
           {won ? (
             <>
-              <div className="mt-4 text-[44px] leading-none font-black gold-text" data-testid="outcome-amount">+{inr(amount)}</div>
+              <div className="mt-4 text-[34px] leading-none font-black tracking-tight gold-text" data-testid="outcome-amount">+{inr(amount)}</div>
               <div className="mt-2 text-xs text-neutral-300">Credited to your wallet · stake {inr(staked)}</div>
             </>
           ) : (

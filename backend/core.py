@@ -196,7 +196,7 @@ async def alert(kind: str, message: str, ref: str = ""):
 
 # ---------- config ----------
 DEFAULT_CONFIG = {
-    "id": "game", "platform_name": "BLACKBA", "mode": "random", "multiplier_bps": 195, "min_stake": 1000, "max_stake": 1000000,
+    "id": "game", "platform_name": "BLACKBA", "mode": "random", "multiplier_bps": 195, "min_stake": 1000, "max_stake": 5000000,
     "paused": False, "practice_enabled": True, "max_round_exposure": 5000000, "company_reserve": 100000000,
     "commission_bps": 1000, "commission_basis": "deposits", "promotions_enabled": True,
     "promo_reserve": 10000000, "music_path": "", "referral_bonus": 30000, "friend_bonus": 15000,

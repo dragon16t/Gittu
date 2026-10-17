@@ -148,6 +148,11 @@
 .ticker { mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
 @keyframes outcomePop { 0% { opacity: 0; transform: scale(0.82) translateY(12px); } 60% { opacity: 1; transform: scale(1.03); } 100% { transform: scale(1); } }
 .outcome-pop { animation: outcomePop 420ms cubic-bezier(0.2, 0.9, 0.25, 1.15) both; }
+@keyframes beat { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.18); } }
+.beat { animation: beat 1s ease-in-out infinite; }
+@keyframes hurryGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); } 50% { box-shadow: 0 0 28px 4px rgba(248, 113, 113, 0.35); } }
+.ring-hurry { animation: hurryGlow 1s ease-in-out infinite; border-radius: 9999px; }
+.ring-locked { box-shadow: 0 0 26px 2px rgba(52, 211, 153, 0.28); border-radius: 9999px; transition: box-shadow 0.4s ease; }
 .ticker-track { display: inline-flex; gap: 28px; white-space: nowrap; animation: ticker 14s linear infinite; }
 .gold-text { background: linear-gradient(180deg, #fff3c4 0%, #e9c766 40%, #c99a2e 70%, #f5dc8a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .safe-top { padding-top: max(10px, env(safe-area-inset-top)); }
