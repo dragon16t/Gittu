@@ -1,13 +1,42 @@
+import asyncio
 import random
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
-from core import db, now, iso, uid, alert, notify, get_config, NOID
+from core import db, now, iso, uid, alert, notify, get_config, NOID, log
 
 OPEN_DEPOSIT = ["initiated", "pending"]
 OPEN_WITHDRAW = ["pending", "approved", "processing"]
+OFFLINE_FALLBACK_MIN = 10
+
+
+def parse_iso(s: str):
+    return datetime.fromisoformat(s)
+
+
+async def withdrawal_dispatcher():
+    """Every 5s: hand untouched requests held by offline verifiers to online ones, then assign unassigned requests."""
+    while True:
+        try:
+            await dispatch_withdrawals()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("withdrawal dispatcher error")
+        await asyncio.sleep(5)
+
+
+async def dispatch_withdrawals():
+    online = [v["id"] for v in await db.verifiers.find({"status": "active", "online": True, "perm_withdraw": True},
+                                                       {"_id": 0, "id": 1}).to_list(500)]
+    if online:
+        async for w in db.withdrawals.find({"status": "pending", "account_id": {"$ne": None},
+                                            "verifier_id": {"$nin": online}}, NOID):
+            await release_withdrawal(w, "reassign_offline")
+    async for w in db.withdrawals.find({"status": "pending", "account_id": None}, NOID):
+        await assign_withdrawal(w)
 
 
 async def eligible_deposit_account(amount: int):
@@ -35,14 +64,23 @@ async def eligible_deposit_account(amount: int):
 
 
 async def assign_withdrawal(w: dict, exclude: list = None) -> bool:
-    """Atomically commit an eligible account with enough uncommitted funds to this withdrawal."""
+    """Commit the withdrawal to an ONLINE verifier account with enough free funds (least busy first, random ties).
+    Offline verifiers are used only after the request has waited OFFLINE_FALLBACK_MIN minutes."""
     exclude = exclude or []
     verifiers = {v["id"]: v for v in await db.verifiers.find(
         {"status": "active", "perm_withdraw": True, "withdrawal_limit": {"$gte": w["amount"]}}, NOID).to_list(500)}
     accs = await db.payment_accounts.find({"status": "active", "verifier_id": {"$in": list(verifiers)},
-                                           "withdrawal_limit": {"$gte": w["amount"]},
-                                           "id": {"$nin": exclude}}, NOID).to_list(500)
-    accs.sort(key=lambda a: (not verifiers[a["verifier_id"]].get("online"), random.random()))
+                                           "withdrawal_limit": {"$gte": w["amount"]}, "id": {"$nin": exclude},
+                                           "$expr": {"$gte": [{"$subtract": ["$available_funds", "$committed"]}, w["amount"]]}},
+                                          NOID).to_list(500)
+    waited = (now() - parse_iso(w["created_at"])).total_seconds() / 60 if w.get("created_at") else 0
+    if waited < OFFLINE_FALLBACK_MIN:
+        accs = [a for a in accs if verifiers[a["verifier_id"]].get("online")]
+    loads = {r["_id"]: r["n"] for r in await db.withdrawals.aggregate([
+        {"$match": {"verifier_id": {"$in": list(verifiers)}, "status": {"$in": OPEN_WITHDRAW}}},
+        {"$group": {"_id": "$verifier_id", "n": {"$sum": 1}}}]).to_list(500)}
+    rng = random.SystemRandom()
+    accs.sort(key=lambda a: (not verifiers[a["verifier_id"]].get("online"), loads.get(a["verifier_id"], 0), rng.random()))
     for a in accs:
         got = await db.payment_accounts.find_one_and_update(
             {"id": a["id"], "$expr": {"$gte": [{"$subtract": ["$available_funds", "$committed"]}, w["amount"]]}},

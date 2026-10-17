@@ -19,6 +19,7 @@ import routes_admin  # noqa: E402
 import promotions  # noqa: E402
 import tickets  # noqa: E402
 import presence  # noqa: E402
+import payments  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 ORIGINS = [o.strip() for o in os.environ["CORS_ORIGINS"].split(",") if o.strip()]
@@ -123,6 +124,7 @@ async def startup():
     app.state.bonus = asyncio.create_task(promotions.bonus_loop())
     app.state.visitors = asyncio.create_task(presence.snapshot_loop())
     app.state.qr_warm = asyncio.create_task(warm_qr_cache())
+    app.state.dispatch = asyncio.create_task(payments.withdrawal_dispatcher())
 
 
 @app.on_event("shutdown")

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from core import db, iso, current_verifier, ledger_credit, reserved_settle, audit, notify, dec, get_file
-from payments import (commission_summary, accrue_commission, release_withdrawal, assign_withdrawal,
+from payments import (dispatch_withdrawals, commission_summary, accrue_commission, release_withdrawal, assign_withdrawal,
                       credit_deposit_notice)
 from promotions import on_deposit_verified
 
@@ -70,6 +70,7 @@ async def set_online(body: OnlineIn, request: Request, user=Depends(current_veri
         raise HTTPException(400, "Change your temporary password first")
     await db.verifiers.update_one({"id": v["id"]}, {"$set": {"online": body.online, "status_changed_at": iso()}})
     await audit(user, "verifier.online" if body.online else "verifier.offline", v["id"], request=request)
+    await dispatch_withdrawals()
     return {"online": body.online}
 
 

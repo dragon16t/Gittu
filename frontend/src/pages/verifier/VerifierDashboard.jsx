@@ -110,7 +110,7 @@ export default function VerifierDashboard() {
   const { user, setUser, refresh } = useSession();
   const nav = useNavigate();
   const load = useCallback(() => api.get("/verifier/dashboard").then(({ data }) => setD(data)).catch((e) => toast.error(errMsg(e))), []);
-  useEffect(() => { load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, [load]);
+  useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t); }, [load]);
   if (user?.must_change_password) return <div className="relative z-10 px-5 py-16"><ChangeTemp onDone={refresh} /></div>;
   if (!d) return <div className="p-10 text-neutral-500">Loading…</div>;
   const s = d.stats;

@@ -168,13 +168,6 @@ async def run_round():
     await asyncio.sleep(REVEAL_SECONDS)
     await settle_round(rnd["id"])
     await asyncio.sleep(RESULT_HOLD_SECONDS)
-    await retry_unassigned_withdrawals()
-
-
-async def retry_unassigned_withdrawals():
-    from payments import assign_withdrawal
-    async for w in db.withdrawals.find({"status": "pending", "account_id": None}, NOID):
-        await assign_withdrawal(w)
 
 
 async def engine_loop():

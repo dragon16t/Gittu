@@ -72,6 +72,10 @@ Later additions:
   - Cloudinary (cloud dcvuqcqjn, keys in backend/.env) is the backup copy of EVERY upload (QR codes, ticket proofs). type=authenticated (private, signed-URL read). put_file writes to both stores and succeeds if either works. get_file order: memory cache, then primary storage, then Cloudinary fallback
   - Startup backfill (core.backup_files_to_cloudinary) copies any file not yet backed up. Nothing is ever deleted
   - GET /api/deposits/active restores the open (initiated, under 30 min) deposit plus its QR after a page refresh
+- Iteration 11 (fast withdrawal routing):
+  - assign_withdrawal: only ONLINE verifiers whose account has free funds (available_funds - committed >= amount, filtered in Mongo), least open withdrawals first, random ties. Offline verifiers are used only after the request has waited 10 min (OFFLINE_FALLBACK_MIN)
+  - payments.withdrawal_dispatcher runs every 5s: releases untouched "pending" requests held by offline verifiers and reassigns all unassigned ones. It also runs instantly when a verifier switches online. Removed the per-round retry from game.py
+  - Verifier dashboard refreshes every 4s (was 8s)
 
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)
