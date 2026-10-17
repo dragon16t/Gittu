@@ -35,8 +35,8 @@
 @layer base {
     * { @apply border-border; }
     html { font-size: 15px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-    html, body { background: #000; height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; }
-    #root { height: 100%; }
+    html, body { background: #000; min-height: 100%; overflow-x: clip; overscroll-behavior-y: none; }
+    #root { min-height: 100%; }
     button, a, input, select, textarea { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     @media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } }
     body {
@@ -148,7 +148,7 @@
 .ticker { mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
 .ticker-track { display: inline-flex; gap: 28px; white-space: nowrap; animation: ticker 14s linear infinite; }
 .gold-text { background: linear-gradient(180deg, #fff3c4 0%, #e9c766 40%, #c99a2e 70%, #f5dc8a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.safe-top { padding-top: max(8px, env(safe-area-inset-top)); }
+.safe-top { padding-top: max(10px, env(safe-area-inset-top)); }
 @media (max-height: 680px) { .side-ring { width: min(24vw, 13dvh) !important; } }
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 

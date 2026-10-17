@@ -26,8 +26,7 @@ import VerifierDashboard from "@/pages/verifier/VerifierDashboard";
 function ScrollReset() {
   const { pathname, search } = useLocation();
   useEffect(() => {
-    const el = document.getElementById("app-scroll");
-    if (el) el.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
     const target = new URLSearchParams(search).get("section");
     if (target) setTimeout(() => document.querySelector(`[data-section="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 350);
   }, [pathname, search]);
@@ -55,7 +54,7 @@ const Portal = ({ portal }) => (
 
 export default function App() {
   return (
-    <div id="app-scroll" className="grain h-[100dvh] overflow-y-auto overflow-x-hidden overscroll-none">
+    <div id="app-scroll" className="grain min-h-[100dvh] overflow-x-clip">
       <BrowserRouter>
         <ScrollReset />
         <Routes>
