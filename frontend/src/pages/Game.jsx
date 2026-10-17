@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Mail, Gift, Wallet as WalletIcon, Headset, Trophy, Lock } from "lucide-react";
+import { useSession } from "@/lib/session";
 import { api, errMsg, inr, inr0, newKey, toPaise } from "@/lib/api";
 import { TopBar, CountdownRing, SideCircle, StakePicker, ResultStage, RecentResults } from "@/components/game/GameParts";
 import { useMusic, useRevealAnimation } from "@/components/game/hooks";
@@ -45,6 +46,10 @@ export default function Game() {
   const [referBonus, setReferBonus] = useState(30000);
   const [outcome, setOutcome] = useState(null);
   const offset = useRef(0);
+  const { user } = useSession();
+  const guestRef = useRef(true);
+  guestRef.current = !user;
+  const nav = useNavigate();
   const stateRef = useRef(null);
   const animated = useRef(null);
   const toasted = useRef(null);
@@ -54,7 +59,7 @@ export default function Game() {
   const load = useCallback(async () => {
     try {
       const t0 = Date.now();
-      const { data } = await api.get("/game/state");
+      const { data } = await api.get(guestRef.current ? "/game/public-state" : "/game/state");
       const t1 = Date.now();
       const off = new Date(data.server_time).getTime() - (t0 + t1) / 2;
       offset.current = offset.current === 0 || t1 - t0 < 400 ? off : offset.current;
@@ -77,10 +82,10 @@ export default function Game() {
     const t = setInterval(() => setNow(Date.now()), 250);
     const vis = () => !document.hidden && load();
     document.addEventListener("visibilitychange", vis);
-    api.get("/coupons").then(({ data }) => setCoupons(data.filter((c) => c.status === "available").length)).catch(() => {});
+    if (user) api.get("/coupons").then(({ data }) => setCoupons(data.filter((c) => c.status === "available").length)).catch(() => {});
     api.get("/promo/rules").then(({ data }) => setReferBonus(data.bonus)).catch(() => {});
     return () => { alive = false; clearTimeout(timer); clearInterval(t); document.removeEventListener("visibilitychange", vis); };
-  }, [load]);
+  }, [load, user]);
 
   const round = state?.round;
   const last = state?.last_round;
@@ -157,7 +162,7 @@ export default function Game() {
   };
 
   return (
-    <div className="relative z-10 mx-auto max-w-[480px] min-h-[100dvh] flex flex-col" data-testid="game-page">
+    <div className="relative z-10 mx-auto max-w-[480px] min-h-[100dvh] flex flex-col" data-testid="game-page" onClickCapture={(e) => { if (!user && e.target.closest("button,a,input")) { e.preventDefault(); e.stopPropagation(); nav("/login"); } }}>
       <header className="sticky top-0 shrink-0 z-30 px-4 safe-top pb-1.5 bg-black/80 backdrop-blur-xl border-b border-white/5" data-testid="sticky-header">
         <TopBar balance={state?.balance} music={music} onToggleMusic={toggleMusic} />
         <div className="mt-1.5 flex items-center justify-between gap-2">
@@ -203,9 +208,9 @@ export default function Game() {
         <div className="h-4 text-center text-[11px] leading-4 text-neutral-400 truncate" data-testid="my-round-bets">
           {myBets.length > 0 ? `Your bets: ${myBets.map((b) => `${b.side} ${inr(b.amount)}`).join(" · ")}` : bettingOpen ? "Pick ODD or EVEN, then place your bet" : "Wait for the result. The next round starts after it"}
         </div>
-        <button onClick={placeBet} disabled={busy || !bettingOpen} data-testid="place-bet-button"
+        <button onClick={placeBet} disabled={user && (busy || !bettingOpen)} data-testid="place-bet-button"
           className="silver-btn rounded-full h-[clamp(40px,6dvh,48px)] w-full text-[clamp(15px,2.3dvh,18px)] font-extrabold tracking-wide">
-          {busy ? "PLACING…" : bettingOpen ? `PLACE BET${side ? ` · ${side}` : ""}` : "BETTING CLOSED"}
+          {!user ? "LOGIN TO PLAY" : busy ? "PLACING…" : bettingOpen ? `PLACE BET${side ? ` · ${side}` : ""}` : "BETTING CLOSED"}
         </button>
       </footer>
     </div>

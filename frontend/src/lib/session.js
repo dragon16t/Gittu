@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "./api";
 
-const ME = { user: "/auth/me", verifier: "/verifier/auth/me", admin: "/admin/auth/me" };
+const ME = { user: "/auth/me", verifier: "/verifier/auth/me", admin: "/admin/auth/me", partner: "/partner/auth/me" };
 const SessionCtx = createContext(null);
 
 export function SessionProvider({ portal, children }) {

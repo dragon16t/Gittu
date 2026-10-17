@@ -2,10 +2,11 @@ import asyncio
 import secrets
 from datetime import timedelta, timezone, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 
-from core import invalidate_config, db, now, iso, uid, current_user, ledger_credit, notify, get_config, log
+from core import current_admin, audit, invalidate_config, db, now, iso, uid, current_user, ledger_credit, notify, get_config, log
 
 router = APIRouter()
 P = {"_id": 0}
@@ -101,7 +102,9 @@ async def on_deposit_verified(dep: dict):
 
 async def daily_for(user_id: str):
     today = datetime.now(IST).strftime("%Y-%m-%d")
-    await issue_coupon(user_id, "daily", DAILY_AMOUNT, DAILY_WAGER, f"Daily bonus {today}", f"daily:{user_id}:{today}")
+    cfg = await get_config()
+    if cfg.get("daily_bonus", DAILY_AMOUNT) > 0:
+        await issue_coupon(user_id, "daily", cfg.get("daily_bonus", DAILY_AMOUNT), DAILY_WAGER, f"Daily bonus {today}", f"daily:{user_id}:{today}")
 
 
 async def daily_bonus_run():
@@ -148,11 +151,66 @@ async def referrals(user=Depends(current_user)):
     return {"code": code, "referrals": rows, "rewards_earned": agg[0]["s"] if agg else 0,
             "rules": {"bonus": cfg["referral_bonus"], "friend_bonus": cfg["friend_bonus"],
                       "min_deposit": REFERRAL_MIN_DEPOSIT, "wager": REFERRAL_WAGER, "deposit_wager": DEPOSIT_WAGER,
-                      "daily_bonus": DAILY_AMOUNT, "daily_wager": DAILY_WAGER}}
+                      "daily_bonus": cfg.get("daily_bonus", DAILY_AMOUNT), "daily_wager": DAILY_WAGER}}
 
 
 @router.get("/promo/rules")
 async def promo_rules():
     cfg = await get_config()
     return {"bonus": cfg["referral_bonus"], "friend_bonus": cfg["friend_bonus"], "min_deposit": REFERRAL_MIN_DEPOSIT,
-            "wager": REFERRAL_WAGER, "deposit_wager": DEPOSIT_WAGER, "daily_bonus": DAILY_AMOUNT, "daily_wager": DAILY_WAGER}
+            "wager": REFERRAL_WAGER, "deposit_wager": DEPOSIT_WAGER, "daily_bonus": cfg.get("daily_bonus", DAILY_AMOUNT), "daily_wager": DAILY_WAGER}
+
+
+# ---------- admin bonus management ----------
+class BonusCfgIn(BaseModel):
+    daily_bonus: int = Field(ge=0, le=1000000)
+    referral_bonus: int = Field(ge=0, le=1000000)
+    friend_bonus: int = Field(ge=0, le=1000000)
+
+
+@router.get("/admin/bonus")
+async def bonus_cfg(admin=Depends(current_admin)):
+    cfg = await get_config()
+    hist = await db.coupons.find({"kind": "admin_bonus"}, P).sort("created_at", -1).to_list(100)
+    return {"daily_bonus": cfg.get("daily_bonus", DAILY_AMOUNT), "referral_bonus": cfg["referral_bonus"],
+            "friend_bonus": cfg["friend_bonus"], "promo_reserve": cfg.get("promo_reserve", 0),
+            "promotions_enabled": cfg["promotions_enabled"], "history": hist}
+
+
+@router.put("/admin/bonus")
+async def bonus_cfg_set(body: BonusCfgIn, request: Request, admin=Depends(current_admin)):
+    await db.config.update_one({"id": "game"}, {"$set": body.model_dump()}, upsert=True)
+    invalidate_config()
+    await audit(admin, "bonus.config", "game", body.model_dump(), request)
+    return {"ok": True}
+
+
+class SendBonusIn(BaseModel):
+    username: str = ""
+    random_count: int = Field(0, ge=0, le=500)
+    amount: int = Field(gt=0, le=1000000)
+    wager: int = Field(1, ge=0, le=20)
+    title: str = Field("Surprise bonus", min_length=2, max_length=60)
+    credit_now: bool = True
+
+
+@router.post("/admin/bonus/send")
+async def bonus_send(body: SendBonusIn, request: Request, admin=Depends(current_admin)):
+    if body.username.strip():
+        u = await db.users.find_one({"username": body.username.strip().lower(), "role": "user", "status": "active"}, {"_id": 0, "id": 1})
+        if not u:
+            raise HTTPException(404, "User not found")
+        targets = [u["id"]]
+    elif body.random_count:
+        targets = [u["id"] for u in await db.users.aggregate([{"$match": {"role": "user", "status": "active"}},
+                                                              {"$sample": {"size": body.random_count}}, {"$project": {"_id": 0, "id": 1}}]).to_list(500)]
+    else:
+        raise HTTPException(400, "Enter a username or a number of random users")
+    batch, sent = uid()[:8], 0
+    for t in targets:
+        c = await issue_coupon(t, "admin_bonus", body.amount, body.wager, body.title, f"admin_bonus:{batch}:{t}", admin["id"], hours=72, auto=body.credit_now)
+        sent += 1 if c else 0
+    await audit(admin, "bonus.send", batch, {"targets": len(targets), "sent": sent, "amount": body.amount}, request)
+    if not sent:
+        raise HTTPException(400, "No bonus sent. Check that promotions are enabled and the promo reserve is enough")
+    return {"sent": sent, "targets": len(targets)}

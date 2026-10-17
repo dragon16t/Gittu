@@ -18,7 +18,7 @@ export const RecoveryCodeBox = ({ code, onDone }) => (
 
 export default function Register() {
   const [params] = useSearchParams();
-  const [f, setF] = useState({ username: "", password: "", confirm_password: "", referral_code: params.get("ref") || "", accept_terms: false, mobile: "", dob: "" });
+  const [f, setF] = useState({ username: "", password: "", confirm_password: "", referral_code: params.get("ref") || "", partner_code: (() => { const p = params.get("p"); if (p && !localStorage.getItem("oe_partner")) localStorage.setItem("oe_partner", p.toUpperCase()); return localStorage.getItem("oe_partner") || ""; })(), accept_terms: false, mobile: "", dob: "" });
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState(null);
   const { setUser } = useSession();

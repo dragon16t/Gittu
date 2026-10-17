@@ -17,6 +17,7 @@ import Messages from "@/pages/Messages";
 import Refer from "@/pages/Refer";
 import History from "@/pages/History";
 import Fair from "@/pages/Fair";
+import { PartnerLogin, PartnerSetup, PartnerDashboard } from "@/pages/partner/Partner";
 import Support from "@/pages/Support";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminPanel from "@/pages/admin/AdminPanel";
@@ -62,8 +63,8 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot" element={<Forgot />} />
+            <Route path="/" element={<Game />} />
             <Route element={<Guard login="/login" />}>
-              <Route path="/" element={<Game />} />
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/deposit" element={<Deposit />} />
               <Route path="/withdraw" element={<Withdraw />} />
@@ -79,6 +80,13 @@ export default function App() {
             <Route path="/keepalittle/login" element={<AdminLogin />} />
             <Route element={<Guard login="/keepalittle/login" />}>
               <Route path="/keepalittle" element={<AdminPanel />} />
+            </Route>
+          </Route>
+          <Route element={<Portal portal="partner" />}>
+            <Route path="/partner/login" element={<PartnerLogin />} />
+            <Route path="/partner/setup" element={<PartnerSetup />} />
+            <Route element={<Guard login="/partner/login" />}>
+              <Route path="/partner" element={<PartnerDashboard />} />
             </Route>
           </Route>
           <Route element={<Portal portal="verifier" />}>

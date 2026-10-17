@@ -22,6 +22,7 @@ class RegisterIn(BaseModel):
     password: str
     confirm_password: str
     referral_code: str = ""
+    partner_code: str = ""
     accept_terms: bool = False
     mobile: str
     dob: str
@@ -144,6 +145,10 @@ async def register(body: RegisterIn, request: Request, response: Response):
     user = {"id": uid(), "username": username, "role": "user", "status": "active",
             "password_hash": hash_pw(body.password), "recovery_hash": sha(code), "created_at": iso(),
             "referral_code": new_referral_code(), "terms_accepted_at": iso(), "terms_version": "2026-06", "mobile": mobile, "referred_by": referrer["id"] if referrer else None}
+    if body.partner_code.strip():
+        partner = await db.partners.find_one({"partner_code": body.partner_code.strip().upper(), "status": "active"}, {"_id": 0, "id": 1, "user_id": 1})
+        if partner:
+            user.update(partner_id=partner["id"], partner_attributed_at=iso())
     user["dob_hash"] = sha(f"{user['id']}:{born.isoformat()}")
     try:
         await db.users.insert_one(dict(user))

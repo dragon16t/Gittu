@@ -19,6 +19,7 @@ import routes_admin  # noqa: E402
 import promotions  # noqa: E402
 import tickets  # noqa: E402
 import presence  # noqa: E402
+import partners  # noqa: E402
 import payments  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -40,6 +41,7 @@ api.include_router(routes_admin.router)
 api.include_router(promotions.router)
 api.include_router(tickets.router)
 api.include_router(presence.router)
+api.include_router(partners.router)
 app.include_router(api)
 
 
@@ -86,6 +88,16 @@ async def create_indexes():
     await db.ledger.create_index([("user_id", 1), ("created_at", -1)])
     await db.rounds.create_index("number", unique=True)
     await db.locks.create_index("id", unique=True)
+    await db.partners.create_index("id", unique=True)
+    await db.partners.create_index("partner_code", unique=True)
+    await db.partners.create_index("user_id", unique=True)
+    await db.partner_wallets.create_index("partner_id", unique=True)
+    await db.partner_ledger.create_index("key", unique=True)
+    await db.partner_ledger.create_index([("partner_id", 1), ("created_at", -1)])
+    await db.partner_withdrawals.create_index("id", unique=True)
+    await db.partner_withdrawals.create_index("txn_ref", unique=True, partialFilterExpression={"txn_ref": {"$type": "string"}})
+    await db.partner_invites.create_index("token_hash", unique=True)
+    await db.users.create_index("partner_id")
     await db.rounds.create_index("id", unique=True)
     await db.bets.create_index([("user_id", 1), ("client_key", 1)], unique=True)
     await db.bets.create_index("round_id")

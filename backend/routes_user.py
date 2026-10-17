@@ -87,6 +87,12 @@ async def shared_state() -> dict:
         return _SHARED["val"]
 
 
+@router.get("/game/public-state")
+async def game_public_state():
+    sh = await shared_state()
+    return {"server_time": iso(), **sh["body"], "my_bets": [], "last_round_bets": [], "balance": 0, "guest": True}
+
+
 @router.get("/game/state")
 async def game_state(user=Depends(current_user)):
     sh = await shared_state()

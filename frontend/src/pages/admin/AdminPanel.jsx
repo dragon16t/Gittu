@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, Dice5, Users, ShieldCheck, Landmark, ArrowLeftRight, FileBarChart, ScrollText, Lock, LogOut, Headset, Activity } from "lucide-react";
+import { LayoutDashboard, Dice5, Users, ShieldCheck, Landmark, ArrowLeftRight, FileBarChart, ScrollText, Lock, LogOut, Headset, Activity, Gift, Handshake } from "lucide-react";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { BrandName } from "@/lib/brand";
 import DashboardTab from "./DashboardTab";
+import BonusTab from "./BonusTab";
+import FranchiseeTab from "./FranchiseeTab";
 import GameTab from "./GameTab";
 import UsersTab from "./UsersTab";
 import VerifiersTab from "./VerifiersTab";
@@ -21,6 +23,7 @@ const TABS = [
   ["users", "User Management", Users, UsersTab], ["verifiers", "Payment Verifiers", ShieldCheck, VerifiersTab],
   ["accounts", "Payment Accounts", Landmark, AccountsTab], ["payments", "Deposits & Withdrawals", ArrowLeftRight, PaymentsTab],
   ["tickets", "Support Tickets", Headset, TicketsTab],
+  ["bonus", "Bonus Management", Gift, BonusTab], ["franchisee", "Franchisee Management", Handshake, FranchiseeTab],
   ["workload", "Agent Workload", Activity, WorkloadTab],
   ["reports", "Reports", FileBarChart, ReportsTab],
   ["audit", "Audit Logs", ScrollText, AuditTab], ["security", "Security", Lock, SecurityTab],
