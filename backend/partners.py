@@ -116,6 +116,14 @@ async def partner_setup(body: SetupIn, request: Request):
     return {"ok": True}
 
 
+@router.get("/partner/public/{code}")
+async def partner_public(code: str):
+    p = await db.partners.find_one({"partner_code": code.strip().upper()[:12], "status": "active"}, {"_id": 0, "name": 1, "partner_code": 1})
+    if not p:
+        raise HTTPException(404, "Partner not found")
+    return p
+
+
 @router.get("/partner/auth/me")
 async def partner_me(user=Depends(current_partner)):
     p = await db.partners.find_one({"user_id": user["id"]}, P)

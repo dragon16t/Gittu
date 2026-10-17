@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api, errMsg } from "@/lib/api";
@@ -39,6 +39,10 @@ export default function Register() {
       setBusy(false);
     }
   };
+  const [partner, setPartner] = useState(null);
+  useEffect(() => {
+    if (f.partner_code) api.get(`/partner/public/${f.partner_code}`).then(({ data }) => setPartner(data)).catch(() => {});
+  }, [f.partner_code]);
   return (
     <AuthCard
       testid="register-page"
@@ -50,6 +54,14 @@ export default function Register() {
         <RecoveryCodeBox code={code} onDone={() => nav("/")} />
       ) : (
         <form onSubmit={submit} className="space-y-4">
+          {partner && (
+            <div className="relative overflow-hidden rounded-2xl border border-[#d4af37]/45 bg-gradient-to-br from-[#d4af37]/15 via-black to-black px-4 py-3.5" data-testid="partner-welcome-banner">
+              <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#d4af37]/20 blur-2xl" />
+              <div className="text-[10px] uppercase tracking-[0.25em] gold-text font-bold">Official partner invite</div>
+              <div className="mt-1 text-[17px] font-black text-white leading-tight">Welcome! You were invited by <span className="gold-text">{partner.name}</span></div>
+              <div className="mt-1 text-[12px] text-neutral-300">Create your account to start playing ODD/EVEN and win up to 1.95×.</div>
+            </div>
+          )}
           <Field label="Username" testid="register-username-input" value={f.username} onChange={set("username")} required />
           <Field label="Mobile number" type="tel" inputMode="numeric" maxLength={10} prefix="+91" testid="register-mobile-input" value={f.mobile}
             onChange={(e) => setF({ ...f, mobile: e.target.value.replace(/\D/g, "") })} required />
