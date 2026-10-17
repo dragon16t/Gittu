@@ -83,6 +83,10 @@ Later additions:
   - Deposit page always opens on the amount screen. An unfinished deposit shows a "Continue" card. A new deposit cancels the old one. "Change amount / Cancel" on the QR screen
   - Deposits go ONLY to an online verifier's account whose QR file exists. Admin Accounts tab shows "Missing · re-upload" for broken QRs
   - "Pay with UPI app" on the deposit QR screen: upi://pay deep link (pa, pn, am, cu=INR, tn="Deposit <id8>") plus direct GPay (tez://upi/pay), PhonePe (phonepe://pay) and Paytm (paytmmp://pay) buttons
+- Iteration 13 (strict timer):
+  - ROOT CAUSE of timer resets / instant results: every backend instance ran its own engine, and recover() force-closed the live round. Fix: a Mongo lease lock (db.locks id=engine, 15s lease, renewed every 4s, game.INSTANCE) so only ONE engine runs. recover() now waits for an open round's closes_at instead of closing it early. Verified: a second engine never led, and rounds close at exactly 30.0s
+  - OutcomeCard overlay (gold WIN card with +amount and stake / muted LOSS card with −stake) replaces the result toasts. Auto-closes after 3.6s/2.8s, tap to close
+  - Deposit presets 100/300/400/500/1000/2000/5000 (minimum ₹100 already enforced by the server)
 
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)

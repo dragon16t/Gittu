@@ -85,6 +85,7 @@ async def create_indexes():
     await db.visitor_stats.create_index("at", expireAfterSeconds=172800)
     await db.ledger.create_index([("user_id", 1), ("created_at", -1)])
     await db.rounds.create_index("number", unique=True)
+    await db.locks.create_index("id", unique=True)
     await db.rounds.create_index("id", unique=True)
     await db.bets.create_index([("user_id", 1), ("client_key", 1)], unique=True)
     await db.bets.create_index("round_id")

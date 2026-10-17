@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { api, errMsg, inr, dt, toPaise, blobUrl } from "@/lib/api";
 import { MobileShell, Field, SilverButton, Badge, Empty } from "@/components/common";
 
-const PRESETS = [500, 1000, 2000, 5000];
+const PRESETS = [100, 300, 400, 500, 1000, 2000, 5000];
 
 const upiQuery = (dep) => new URLSearchParams({
   pa: dep.upi_id, pn: dep.account_name || "Payee", am: (dep.amount / 100).toFixed(2), cu: "INR", tn: `Deposit ${dep.id.slice(0, 8)}`,

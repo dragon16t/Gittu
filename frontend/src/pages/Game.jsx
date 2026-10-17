@@ -6,6 +6,7 @@ import { api, errMsg, inr, inr0, newKey, toPaise } from "@/lib/api";
 import { TopBar, CountdownRing, SideCircle, StakePicker, ResultStage, RecentResults } from "@/components/game/GameParts";
 import { useMusic, useRevealAnimation } from "@/components/game/hooks";
 import { Confetti } from "@/components/game/Confetti";
+import { OutcomeCard } from "@/components/game/OutcomeCard";
 import { playBetSound, playWinSound, playTickSound, unlockAudio } from "@/lib/sfx";
 
 const WinTicker = ({ winners }) => {
@@ -42,6 +43,7 @@ export default function Game() {
   const [coupons, setCoupons] = useState(0);
   const [burst, setBurst] = useState(0);
   const [referBonus, setReferBonus] = useState(30000);
+  const [outcome, setOutcome] = useState(null);
   const offset = useRef(0);
   const stateRef = useRef(null);
   const animated = useRef(null);
@@ -103,14 +105,16 @@ export default function Game() {
     if (last && toasted.current !== last.id && state.last_round_bets.length && animated.current === last.id) {
       toasted.current = last.id;
       setTimeout(() => {
-        const won = state.last_round_bets.filter((b) => b.status === "won");
+        const bets = state.last_round_bets;
+        const won = bets.filter((b) => b.status === "won");
+        const staked = bets.reduce((s, b) => s + b.amount, 0);
+        const payout = won.reduce((s, b) => s + b.payout, 0);
+        setOutcome({ won: won.length > 0, amount: payout, staked, round: last.number, result: last.result });
         if (won.length) {
-          toast.success(`You won ${inr(won.reduce((s, b) => s + b.payout, 0))}`);
           setBurst(Date.now());
           playWinSound();
           setTimeout(() => setBurst(0), 2400);
         }
-        else toast(`Round #${last.number}: ${last.result}. Better luck next round.`);
       }, 300);
     }
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -171,6 +175,7 @@ export default function Game() {
       </header>
 
       <Confetti burstKey={burst} />
+      <OutcomeCard data={outcome} onClose={() => setOutcome(null)} />
       <WinTicker winners={state?.winners || []} />
       <main className="flex-1 px-4 pt-2 pb-3 flex flex-col justify-evenly gap-[clamp(8px,1.4dvh,14px)]">
         <div className="relative shrink-0 panel !rounded-[24px] px-4 py-[clamp(6px,1.2dvh,12px)] overflow-hidden" data-testid="game-board">

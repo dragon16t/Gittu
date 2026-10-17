@@ -3,6 +3,7 @@ import secrets
 from datetime import datetime, timedelta
 
 from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 
 from core import invalidate_config, db, now, iso, uid, sha, get_config, ledger_credit, alert, log, NOID
 
@@ -119,13 +120,17 @@ async def record_result(rnd: dict):
 
 
 async def recover():
-    """Finish any rounds interrupted by a restart."""
+    """Finish any rounds interrupted by a restart; an open round always runs its full time."""
     async for r in db.rounds.find({"status": {"$in": ["betting", "closed", "revealing"]}}, NOID):
         if r["status"] == "betting":
-            await db.rounds.update_one({"id": r["id"], "status": "betting"}, {"$set": {"status": "closed"}})
+            wait = (parse(r["closes_at"]) - now()).total_seconds()
+            if wait > 0:
+                await asyncio.sleep(wait)
+            await db.rounds.update_one({"id": r["id"], "status": "betting"}, {"$set": {"status": "closed", "closed_at": iso()}})
             r["status"] = "closed"
         if r["status"] == "closed" and not r.get("result"):
             await record_result(r)
+            await asyncio.sleep(REVEAL_SECONDS)
         await settle_round(r["id"])
 
 
@@ -172,15 +177,51 @@ async def run_round():
     await asyncio.sleep(RESULT_HOLD_SECONDS)
 
 
-async def engine_loop():
+INSTANCE = uid()
+LEASE_SECONDS = 15
+_LEAD = {"on": False}
+
+
+async def try_lead() -> bool:
+    t = now()
+    try:
+        r = await db.locks.find_one_and_update(
+            {"id": "engine", "$or": [{"owner": INSTANCE}, {"expires_at": {"$lt": iso(t)}}]},
+            {"$set": {"owner": INSTANCE, "expires_at": iso(t + timedelta(seconds=LEASE_SECONDS))}},
+            upsert=True, return_document=ReturnDocument.AFTER)
+        return bool(r and r["owner"] == INSTANCE)
+    except DuplicateKeyError:
+        return False
+
+
+async def lease_keeper():
     while True:
         try:
-            await run_round()
+            _LEAD["on"] = await try_lead()
         except asyncio.CancelledError:
             raise
         except Exception:
-            log.exception("game engine error")
-            await asyncio.sleep(2)
+            log.exception("engine lease error")
+            _LEAD["on"] = False
+        await asyncio.sleep(4)
+
+
+async def engine_loop():
+    keeper = asyncio.create_task(lease_keeper())
+    try:
+        while True:
+            if not _LEAD["on"]:
+                await asyncio.sleep(2)
+                continue
+            try:
+                await run_round()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.exception("game engine error")
+                await asyncio.sleep(2)
+    finally:
+        keeper.cancel()
 
 
 def parse(ts: str) -> datetime:
