@@ -106,6 +106,20 @@ async def create_indexes():
     await db.tickets.create_index("id", unique=True)
     await db.tickets.create_index("number", unique=True)
     await db.coupons.create_index([("user_id", 1), ("created_at", -1)])
+    await db.coupons.create_index("id")
+    await db.coupons.create_index([("status", 1), ("expires_at", 1)])
+    await db.bets.create_index([("round_id", 1), ("user_id", 1)])
+    await db.rounds.create_index([("status", 1), ("number", -1)])
+    await db.notifications.create_index([("user_id", 1), ("read", 1), ("created_at", -1)])
+    await db.deposits.create_index([("user_id", 1), ("created_at", -1)])
+    await db.deposits.create_index([("verifier_id", 1), ("status", 1)])
+    await db.withdrawals.create_index([("user_id", 1), ("created_at", -1)])
+    await db.withdrawals.create_index([("verifier_id", 1), ("status", 1)])
+    await db.withdrawals.create_index([("status", 1), ("account_id", 1)])
+    await db.tickets.create_index([("user_id", 1), ("created_at", -1)])
+    await db.users.create_index("referred_by")
+    await db.payment_accounts.create_index("verifier_id")
+    await db.verifiers.create_index([("status", 1), ("online", 1)])
     await db.users.create_index("mobile", unique=True, partialFilterExpression={"mobile": {"$type": "string"}})
     await db.users.create_index("referral_code", unique=True, partialFilterExpression={"referral_code": {"$type": "string"}})
     async for u in db.users.find({"role": "user", "referral_code": {"$exists": False}}, {"_id": 0, "id": 1}):
@@ -115,6 +129,7 @@ async def create_indexes():
 @app.on_event("startup")
 async def startup():
     await create_indexes()
+    await promotions.credit_pending_referral_coupons()
     await routes_admin.seed_admin()
     try:
         await asyncio.to_thread(init_storage)

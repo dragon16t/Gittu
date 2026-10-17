@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from pymongo import ReturnDocument
 
-from core import db, now, iso, uid, sha, get_config, ledger_credit, alert, log, NOID
+from core import invalidate_config, db, now, iso, uid, sha, get_config, ledger_credit, alert, log, NOID
 
 ROUND_SECONDS = 30
 REVEAL_SECONDS = 3
@@ -138,10 +138,12 @@ async def risk_gate(cfg: dict) -> bool:
     pending_w = pend[0]["s"] if pend else 0
     if liab["wallet_balances"] + pending_w > cfg["company_reserve"]:
         await db.config.update_one({"id": "game"}, {"$set": {"paused": True}})
+        invalidate_config()
         await alert("risk", "Rounds paused: user liabilities and pending withdrawals exceed company reserve")
         return False
     if cfg.get("promotions_enabled") and cfg.get("promo_reserve", 0) <= 0:
         await db.config.update_one({"id": "game"}, {"$set": {"promotions_enabled": False}})
+        invalidate_config()
         await alert("risk", "Promotions disabled: promotional reserve is insufficient")
     return True
 

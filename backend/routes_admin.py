@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from typing import Optional
 
-from core import (db, iso, uid, current_admin, get_config, ledger_credit, ledger_debit, audit, notify, hash_pw,
+from core import (invalidate_config, db, iso, uid, current_admin, get_config, ledger_credit, ledger_debit, audit, notify, hash_pw,
                   gen_password, verify_pw, put_file, get_file, dec)
 from game import liabilities, round_exposure, ensure_commitments, FAIR_AHEAD
 from payments import commission_summary, release_withdrawal, assign_withdrawal, OPEN_WITHDRAW
@@ -183,6 +183,7 @@ async def update_config(body: ConfigIn, request: Request, admin=Depends(current_
     if not upd:
         return before
     await db.config.update_one({"id": "game"}, {"$set": upd}, upsert=True)
+    invalidate_config()
     await db.config_history.insert_one({"id": uid(), "changes": upd, "before": {k: before.get(k) for k in upd},
                                         "by": admin["username"], "created_at": iso()})
     await audit(admin, "config.updated", "game", upd, request)
@@ -594,3 +595,4 @@ async def seed_admin():
     elif not verify_pw(pw, existing["password_hash"]):
         await db.users.update_one({"id": existing["id"]}, {"$set": {"password_hash": hash_pw(pw)}})
     await db.config.update_one({"id": "game"}, {"$setOnInsert": {"id": "game"}}, upsert=True)
+    invalidate_config()

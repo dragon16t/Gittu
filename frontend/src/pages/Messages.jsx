@@ -38,11 +38,11 @@ export default function Messages() {
   useEffect(() => { load(); }, []);
   const claim = async (c) => {
     setBusy(c.id);
+    setCoupons((list) => list.map((x) => (x.id === c.id ? { ...x, status: "claimed", claimed_at: new Date().toISOString() } : x)));
     try {
       const { data } = await api.post(`/coupons/${c.id}/claim`);
       toast.success(`${inr(c.amount)} added to wallet. Balance ${inr(data.balance)}`);
-      load();
-    } catch (e) { toast.error(errMsg(e)); } finally { setBusy(null); }
+    } catch (e) { toast.error(errMsg(e)); load(); } finally { setBusy(null); }
   };
   return (
     <MobileShell title="Messages" testid="messages-page">

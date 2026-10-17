@@ -62,7 +62,13 @@ export const SideCircle = ({ side, multiplier, active, dim, onClick, disabled })
 );
 
 const PRESETS = [1000, 5000, 10000, 50000, 100000];
-export const StakePicker = ({ amount, setAmount }) => (
+const PCTS = [100, 75, 50, 25];
+export const StakePicker = ({ amount, setAmount, balance, maxStake }) => {
+  const pick = (pct) => {
+    const paise = Math.min(Math.floor((balance * pct) / 100 / 100) * 100, maxStake || Infinity);
+    setAmount(paise > 0 ? String(paise / 100) : "");
+  };
+  return (
   <div>
     <div className="sr-only">Bet Amount (₹)</div>
     <div className="field h-[clamp(36px,5.2dvh,44px)] flex items-center px-4 gap-4">
@@ -86,8 +92,17 @@ export const StakePicker = ({ amount, setAmount }) => (
         );
       })}
     </div>
+    <div className="grid grid-cols-4 gap-1.5 mt-1.5" data-testid="stake-percent-row">
+      {PCTS.map((p) => (
+        <button key={p} onClick={() => pick(p)} disabled={balance < 100} data-testid={`stake-pct-${p}`}
+          className="h-[clamp(26px,3.8dvh,32px)] rounded-xl text-[clamp(11px,3.2vw,13px)] font-bold ghost-chip text-neutral-200 disabled:opacity-40">
+          {p}%
+        </button>
+      ))}
+    </div>
   </div>
-);
+  );
+};
 
 const SPARKS = [[14, 22], [26, 45], [8, 70], [20, 82], [80, 18], [86, 50], [74, 62], [92, 74], [60, 12], [36, 10]];
 export const ResultStage = ({ label, final, practice }) => (

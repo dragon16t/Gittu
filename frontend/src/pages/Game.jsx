@@ -43,6 +43,7 @@ export default function Game() {
   const [burst, setBurst] = useState(0);
   const [referBonus, setReferBonus] = useState(30000);
   const offset = useRef(0);
+  const stateRef = useRef(null);
   const animated = useRef(null);
   const toasted = useRef(null);
   const [music, toggleMusic] = useMusic();
@@ -55,19 +56,28 @@ export default function Game() {
       const t1 = Date.now();
       const off = new Date(data.server_time).getTime() - (t0 + t1) / 2;
       offset.current = offset.current === 0 || t1 - t0 < 400 ? off : offset.current;
+      stateRef.current = data;
       setState(data);
     } catch {}
   }, []);
 
   useEffect(() => {
     load();
-    const p = setInterval(() => !document.hidden && load(), 1000);
+    let alive = true, timer;
+    const loop = async () => {
+      if (!document.hidden) await load();
+      if (!alive) return;
+      const r = stateRef.current?.round;
+      const left = r?.status === "betting" ? new Date(r.closes_at).getTime() - (Date.now() + offset.current) : 0;
+      timer = setTimeout(loop, left > 6000 ? 2000 : 900);
+    };
+    timer = setTimeout(loop, 1000);
     const t = setInterval(() => setNow(Date.now()), 250);
     const vis = () => !document.hidden && load();
     document.addEventListener("visibilitychange", vis);
     api.get("/coupons").then(({ data }) => setCoupons(data.filter((c) => c.status === "available").length)).catch(() => {});
     api.get("/promo/rules").then(({ data }) => setReferBonus(data.bonus)).catch(() => {});
-    return () => { clearInterval(p); clearInterval(t); document.removeEventListener("visibilitychange", vis); };
+    return () => { alive = false; clearTimeout(timer); clearInterval(t); document.removeEventListener("visibilitychange", vis); };
   }, [load]);
 
   const round = state?.round;
@@ -181,7 +191,7 @@ export default function Game() {
       </main>
 
       <footer className="sticky bottom-0 shrink-0 z-30 px-4 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] bg-black/85 backdrop-blur-xl border-t border-white/10 space-y-1.5" data-testid="sticky-bet-bar">
-        <StakePicker amount={amount} setAmount={setAmount} />
+        <StakePicker amount={amount} setAmount={setAmount} balance={state?.balance || 0} maxStake={state?.config?.max_stake} />
         <div className="h-4 text-center text-[11px] leading-4 text-neutral-400 truncate" data-testid="my-round-bets">
           {myBets.length > 0 ? `Your bets: ${myBets.map((b) => `${b.side} ${inr(b.amount)}`).join(" · ")}` : bettingOpen ? "Pick ODD or EVEN, then place your bet" : "Wait for the result. The next round starts after it"}
         </div>

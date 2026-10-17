@@ -116,6 +116,9 @@ async def create_session(response, user: dict, request: Request):
     return sid
 
 
+_AUTH_CACHE: dict = {}
+
+
 def principal(role: str):
     async def dep(request: Request) -> dict:
         token = request.cookies.get(f"sess_{role}")
@@ -130,7 +133,11 @@ def principal(role: str):
             raise HTTPException(401, "Invalid or expired session")
         if payload.get("type") != "access" or payload.get("role") != role:
             raise HTTPException(401, "Invalid session")
-        sess = await db.sessions.find_one({"id": payload["sid"], "revoked": False})
+        t = asyncio.get_running_loop().time()
+        hit = _AUTH_CACHE.get(payload["sid"]) if role == "user" else None
+        if hit and t - hit[0] < 3 and hit[1]["id"] == payload["sub"]:
+            return dict(hit[1])
+        sess = await db.sessions.find_one({"id": payload["sid"], "revoked": False}, {"_id": 1})
         if not sess:
             raise HTTPException(401, "Session revoked")
         user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0, "recovery_hash": 0,
@@ -138,7 +145,11 @@ def principal(role: str):
         if not user or user.get("status") != "active":
             raise HTTPException(403, "Account suspended or not found")
         user["session_id"] = payload["sid"]
-        return user
+        if role == "user":
+            if len(_AUTH_CACHE) > 200000:
+                _AUTH_CACHE.clear()
+            _AUTH_CACHE[payload["sid"]] = (t, user)
+        return dict(user)
     return dep
 
 
@@ -190,9 +201,19 @@ DEFAULT_CONFIG = {
 }
 
 
+_CFG = {"at": 0.0, "val": None}
+
+
+def invalidate_config():
+    _CFG["at"] = 0.0
+
+
 async def get_config() -> dict:
-    cfg = await db.config.find_one({"id": "game"}, NOID)
-    return {**DEFAULT_CONFIG, **(cfg or {})}
+    t = asyncio.get_running_loop().time()
+    if _CFG["val"] is None or t - _CFG["at"] > 2:
+        cfg = await db.config.find_one({"id": "game"}, NOID)
+        _CFG["val"], _CFG["at"] = {**DEFAULT_CONFIG, **(cfg or {})}, t
+    return dict(_CFG["val"])
 
 
 # ---------- wallet ledger (amounts in paise) ----------

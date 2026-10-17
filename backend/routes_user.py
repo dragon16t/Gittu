@@ -1,5 +1,6 @@
 from datetime import timedelta
 import re
+import asyncio
 
 from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from pydantic import BaseModel
@@ -56,28 +57,46 @@ def public_round(r: dict) -> dict:
 
 
 # ---------- game ----------
+_SHARED = {"at": 0.0, "val": None, "lock": None}
+
+
+async def shared_state() -> dict:
+    loop = asyncio.get_running_loop()
+    if _SHARED["lock"] is None:
+        _SHARED["lock"] = asyncio.Lock()
+    if _SHARED["val"] and loop.time() - _SHARED["at"] < 0.5:
+        return _SHARED["val"]
+    async with _SHARED["lock"]:
+        if _SHARED["val"] and loop.time() - _SHARED["at"] < 0.5:
+            return _SHARED["val"]
+        cfg = await get_config()
+        cur = await db.rounds.find_one({"status": {"$in": ["betting", "closed", "revealing"]}}, P, sort=[("number", -1)])
+        recent = await db.rounds.find({"status": "settled"}, P).sort("number", -1).to_list(10)
+        last = recent[0] if recent else None
+        wins = await db.bets.find({"status": "won"}, {"_id": 0, "username": 1, "payout": 1, "round_number": 1, "side": 1, "id": 1}).sort("settled_at", -1).to_list(12)
+        for b in wins:
+            n = b.pop("username")
+            b["name"] = (n[:2] + "***" + n[-1:]) if len(n) > 4 else (n[0] + "***")
+        _SHARED["val"] = {
+            "cur_id": cur["id"] if cur else None, "last_id": last["id"] if last else None,
+            "body": {"winners": wins, "round": public_round(cur), "last_round": public_round(last),
+                     "recent": [r["result"] for r in recent], "paused": cfg["paused"],
+                     "config": {"min_stake": cfg["min_stake"], "max_stake": cfg["max_stake"], "multiplier_bps": cfg["multiplier_bps"],
+                                "mode": cfg["mode"], "round_seconds": ROUND_SECONDS, "reveal_seconds": REVEAL_SECONDS}}}
+        _SHARED["at"] = loop.time()
+        return _SHARED["val"]
+
+
 @router.get("/game/state")
 async def game_state(user=Depends(current_user)):
-    cfg = await get_config()
-    cur = await db.rounds.find_one({"status": {"$in": ["betting", "closed", "revealing"]}}, P, sort=[("number", -1)])
-    last = await db.rounds.find_one({"status": "settled"}, P, sort=[("number", -1)])
-    recent = await db.rounds.find({"status": "settled"}, {"_id": 0, "result": 1, "number": 1}).sort("number", -1).to_list(10)
-    my = []
-    if cur:
-        my = await db.bets.find({"round_id": cur["id"], "user_id": user["id"]}, P).to_list(50)
-    last_bets = []
-    if last:
-        last_bets = await db.bets.find({"round_id": last["id"], "user_id": user["id"]}, P).to_list(50)
-    w = await db.wallets.find_one({"user_id": user["id"]}, P)
-    wins = await db.bets.find({"status": "won"}, {"_id": 0, "username": 1, "payout": 1, "round_number": 1, "side": 1, "id": 1}).sort("settled_at", -1).to_list(12)
-    for b in wins:
-        n = b.pop("username")
-        b["name"] = (n[:2] + "***" + n[-1:]) if len(n) > 4 else (n[0] + "***")
-    return {"server_time": iso(), "winners": wins, "round": public_round(cur), "last_round": public_round(last),
-            "recent": [r["result"] for r in recent], "my_bets": my, "last_round_bets": last_bets,
-            "balance": w["balance"] if w else 0, "paused": cfg["paused"],
-            "config": {"min_stake": cfg["min_stake"], "max_stake": cfg["max_stake"], "multiplier_bps": cfg["multiplier_bps"],
-                       "mode": cfg["mode"], "round_seconds": ROUND_SECONDS, "reveal_seconds": REVEAL_SECONDS}}
+    sh = await shared_state()
+    ids = [i for i in (sh["cur_id"], sh["last_id"]) if i]
+    bets = await db.bets.find({"round_id": {"$in": ids}, "user_id": user["id"]}, P).to_list(100) if ids else []
+    w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0, "balance": 1})
+    return {"server_time": iso(), **sh["body"],
+            "my_bets": [b for b in bets if b["round_id"] == sh["cur_id"]],
+            "last_round_bets": [b for b in bets if b["round_id"] == sh["last_id"]],
+            "balance": w["balance"] if w else 0}
 
 
 @router.post("/game/bet")

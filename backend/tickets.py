@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from pymongo.errors import DuplicateKeyError
 
-from core import db, get_config, iso, uid, current_user, current_admin, current_verifier, audit, notify, alert, put_file, get_file
+from core import invalidate_config, db, get_config, iso, uid, current_user, current_admin, current_verifier, audit, notify, alert, put_file, get_file
 from routes_verifier import vprofile, do_verify_deposit, do_complete_withdrawal
 
 router = APIRouter()
@@ -80,6 +80,7 @@ async def set_branding(body: BrandIn, request: Request, admin=Depends(current_ad
         raise HTTPException(400, "Name must be 2-24 letters, numbers, spaces or . & ' -")
     before = (await get_config()).get("platform_name")
     await db.config.update_one({"id": "game"}, {"$set": {"platform_name": name}}, upsert=True)
+    invalidate_config()
     await audit(admin, "config.platform_name", "game", {"from": before, "to": name}, request)
     return {"name": name}
 

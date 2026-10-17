@@ -5,7 +5,7 @@ from datetime import timedelta, timezone, datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pymongo.errors import DuplicateKeyError
 
-from core import db, now, iso, uid, current_user, ledger_credit, notify, get_config, log
+from core import invalidate_config, db, now, iso, uid, current_user, ledger_credit, notify, get_config, log
 
 router = APIRouter()
 P = {"_id": 0}
@@ -41,7 +41,7 @@ async def consume_wagering(user_id: str, stake: int):
     await db.wallets.update_one({"user_id": user_id, "wager_remaining": {"$lte": 0}}, {"$set": {"wager_remaining": 0, "wager_required": 0}})
 
 
-async def issue_coupon(user_id: str, kind: str, amount: int, mult: int, title: str, key: str, ref: str = "", hours=24):
+async def issue_coupon(user_id: str, kind: str, amount: int, mult: int, title: str, key: str, ref: str = "", hours=24, auto=False):
     cfg = await get_config()
     if not cfg["promotions_enabled"] or cfg.get("promo_reserve", 0) < amount:
         return None
@@ -52,7 +52,11 @@ async def issue_coupon(user_id: str, kind: str, amount: int, mult: int, title: s
         await db.coupons.insert_one(dict(c))
     except DuplicateKeyError:
         return None
-    await notify(user_id, "New coupon", f"{title}: ₹{amount / 100:.0f} is waiting. Tap Claim in Messages.")
+    if auto:
+        await redeem(c, "auto_credited")
+        await notify(user_id, "Bonus credited", f"{title}: ₹{amount / 100:.0f} has been added to your wallet ({mult}× wagering).")
+    else:
+        await notify(user_id, "New coupon", f"{title}: ₹{amount / 100:.0f} is waiting. Tap Claim in Messages.")
     return c
 
 
@@ -65,7 +69,14 @@ async def redeem(coupon: dict, status: str) -> bool:
                            {"coupon_id": coupon["id"], "kind": coupon["kind"], "wager_multiplier": coupon["wager_multiplier"]}):
         await add_wagering(coupon["user_id"], coupon["amount"] * coupon["wager_multiplier"])
         await db.config.update_one({"id": "game"}, {"$inc": {"promo_reserve": -coupon["amount"]}})
+        invalidate_config()
     return True
+
+
+async def credit_pending_referral_coupons():
+    async for c in db.coupons.find({"kind": {"$in": ["referral", "welcome"]}, "status": "available"}, P):
+        if await redeem(c, "auto_credited"):
+            await notify(c["user_id"], "Bonus credited", f"{c['title']}: ₹{c['amount'] / 100:.0f} has been added to your wallet.")
 
 
 async def on_deposit_verified(dep: dict):
@@ -80,11 +91,11 @@ async def on_deposit_verified(dep: dict):
         return
     cfg = await get_config()
     c = await issue_coupon(u["referred_by"], "referral", cfg["referral_bonus"], REFERRAL_WAGER,
-                           f"Referral bonus for inviting {u['username']}", f"referral:{u['id']}", u["id"], hours=72)
+                           f"Referral bonus for inviting {u['username']}", f"referral:{u['id']}", u["id"], hours=72, auto=True)
     if not c:
         return
     await issue_coupon(u["id"], "welcome", cfg["friend_bonus"], REFERRAL_WAGER, "Welcome bonus · referral first deposit",
-                       f"welcome:{u['id']}", u["referred_by"], hours=72)
+                       f"welcome:{u['id']}", u["referred_by"], hours=72, auto=True)
     await db.users.update_one({"id": u["id"]}, {"$set": {"referral_rewarded": True}})
 
 
@@ -131,7 +142,7 @@ async def referrals(user=Depends(current_user)):
     code = u.get("referral_code") or await assign_referral_code(user["id"])
     rows = await db.users.find({"referred_by": user["id"]}, {"_id": 0, "username": 1, "created_at": 1,
                                                              "referral_rewarded": 1}).to_list(500)
-    agg = await db.coupons.aggregate([{"$match": {"user_id": user["id"], "kind": "referral", "status": {"$ne": "available"}}},
+    agg = await db.coupons.aggregate([{"$match": {"user_id": user["id"], "kind": "referral"}},
                                       {"$group": {"_id": None, "s": {"$sum": "$amount"}}}]).to_list(1)
     cfg = await get_config()
     return {"code": code, "referrals": rows, "rewards_earned": agg[0]["s"] if agg else 0,
