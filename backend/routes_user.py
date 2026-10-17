@@ -8,7 +8,7 @@ from pymongo.errors import DuplicateKeyError
 
 from core import (db, now, iso, uid, current_user, get_config, ledger_debit, ledger_credit, audit, notify, verify_pw, enc, dec, mask,
                   get_file, check_rate, hit_rate)
-from game import round_exposure, parse, ensure_commitments, ROUND_SECONDS, REVEAL_SECONDS, FAIR_AHEAD
+from game import round_exposure, parse, ensure_commitments, ROUND_SECONDS, REVEAL_SECONDS, FAIR_AHEAD, PAYOUT_BPS
 from payments import eligible_deposit_account, assign_withdrawal, OPEN_WITHDRAW, DEPOSIT_WINDOW_MIN, UTR_GRACE_MIN
 from promotions import consume_wagering, MIN_WITHDRAWAL
 
@@ -81,7 +81,7 @@ async def shared_state() -> dict:
             "cur_id": cur["id"] if cur else None, "last_id": last["id"] if last else None,
             "body": {"winners": wins, "round": public_round(cur), "last_round": public_round(last),
                      "recent": [r["result"] for r in recent], "paused": cfg["paused"],
-                     "config": {"min_stake": cfg["min_stake"], "max_stake": cfg["max_stake"], "multiplier_bps": cfg["multiplier_bps"],
+                     "config": {"min_stake": cfg["min_stake"], "max_stake": cfg["max_stake"], "multiplier_bps": PAYOUT_BPS,
                                 "mode": cfg["mode"], "round_seconds": ROUND_SECONDS, "reveal_seconds": REVEAL_SECONDS}}}
         _SHARED["at"] = loop.time()
         return _SHARED["val"]

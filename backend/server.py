@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse  # noqa: E402
 from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 
 from core import db, client, init_storage, log, get_file, backup_files_to_cloudinary  # noqa: E402
-from game import engine_loop  # noqa: E402
+from game import engine_loop, audit_loop  # noqa: E402
 import routes_auth  # noqa: E402
 import routes_user  # noqa: E402
 import routes_verifier  # noqa: E402
@@ -141,6 +141,7 @@ async def startup():
     app.state.visitors = asyncio.create_task(presence.snapshot_loop())
     app.state.qr_warm = asyncio.create_task(warm_qr_cache())
     app.state.dispatch = asyncio.create_task(payments.withdrawal_dispatcher())
+    app.state.audit = asyncio.create_task(audit_loop())
 
 
 @app.on_event("shutdown")

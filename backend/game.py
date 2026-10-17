@@ -12,8 +12,36 @@ REVEAL_SECONDS = 3
 RESULT_HOLD_SECONDS = 2
 
 
-def payout_for(amount: int, bps: int) -> int:
-    return amount * bps // 100
+PAYOUT_BPS = 195
+
+
+def payout_for(amount: int, bps: int = PAYOUT_BPS) -> int:
+    return amount * PAYOUT_BPS // 100
+
+
+async def audit_payouts():
+    """Alert admin if any recent win isn't exactly stake x 1.95 or was credited more than once."""
+    since = iso(now() - timedelta(hours=2))
+    async for b in db.bets.find({"status": "won", "settled_at": {"$gte": since}}, NOID):
+        if b["payout"] != payout_for(b["amount"]):
+            await alert("payout_mismatch", f"Bet {b['id'][:8]} paid {b['payout']} for stake {b['amount']}", b["id"])
+    dup = await db.ledger.aggregate([{"$match": {"type": "bet_win", "created_at": {"$gte": since}}},
+                                     {"$group": {"_id": "$meta.bet_id", "n": {"$sum": 1}}},
+                                     {"$match": {"n": {"$gt": 1}}}]).to_list(50)
+    for d in dup:
+        await alert("double_win_credit", f"Bet {str(d['_id'])[:8]} credited {d['n']} times", str(d["_id"]))
+
+
+async def audit_loop():
+    while True:
+        try:
+            if _LEAD["on"]:
+                await audit_payouts()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("payout audit error")
+        await asyncio.sleep(600)
 
 
 async def liabilities() -> dict:
@@ -165,7 +193,7 @@ async def run_round():
     opens = now()
     closes = opens + timedelta(seconds=ROUND_SECONDS)
     rnd = {"id": uid(), "number": (last["number"] if last else 0) + 1, "status": "betting", "mode": cfg["mode"],
-           "multiplier_bps": cfg["multiplier_bps"], "opens_at": iso(opens), "closes_at": iso(closes),
+           "multiplier_bps": PAYOUT_BPS, "opens_at": iso(opens), "closes_at": iso(closes),
            "result": None, "dice": None,
            "totals": {"odd_stake": 0, "even_stake": 0, "odd_count": 0, "even_count": 0}}
     await db.rounds.insert_one(dict(rnd))
