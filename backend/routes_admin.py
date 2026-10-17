@@ -375,8 +375,11 @@ async def _create_account(body: AccountIn) -> dict:
 @router.get("/accounts")
 async def list_accounts(admin=Depends(current_admin)):
     rows = await db.payment_accounts.find({}, P).sort("created_at", -1).to_list(500)
+    have = set(await db.files.distinct("storage_path", {"storage_path": {"$in": [a.get("qr_path") for a in rows if a.get("qr_path")]}, "is_deleted": False}))
     for a in rows:
-        a["has_qr"] = bool(a.pop("qr_path", ""))
+        p = a.pop("qr_path", "")
+        a["has_qr"] = bool(p) and p in have
+        a["qr_missing"] = bool(p) and p not in have
     return rows
 
 

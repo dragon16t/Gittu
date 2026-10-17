@@ -44,9 +44,10 @@ async def dashboard(user=Depends(current_verifier)):
     deposits = await db.deposits.find({"verifier_id": v["id"]}, P).sort("created_at", -1).to_list(200)
     withdrawals = await db.withdrawals.find({"verifier_id": v["id"]}, P).sort("created_at", -1).to_list(200)
     commission = await db.commission_ledger.find({"verifier_id": v["id"]}, {"_id": 0, "key": 0}).sort("created_at", -1).to_list(200)
+    have = set(await db.files.distinct("storage_path", {"storage_path": {"$in": [a.get("qr_path") for a in accounts if a.get("qr_path")]}, "is_deleted": False}))
     for a in accounts:
-        a["has_qr"] = bool(a.get("qr_path"))
-        a.pop("qr_path", None)
+        p = a.pop("qr_path", None)
+        a["has_qr"] = bool(p) and p in have
     return {"verifier": v, "accounts": accounts, "deposits": deposits,
             "withdrawals": [wd_view(w) for w in withdrawals], "commission_ledger": commission,
             "stats": {**await commission_summary(v["id"]),

@@ -76,6 +76,12 @@ Later additions:
   - assign_withdrawal: only ONLINE verifiers whose account has free funds (available_funds - committed >= amount, filtered in Mongo), least open withdrawals first, random ties. Offline verifiers are used only after the request has waited 10 min (OFFLINE_FALLBACK_MIN)
   - payments.withdrawal_dispatcher runs every 5s: releases untouched "pending" requests held by offline verifiers and reassigns all unassigned ones. It also runs instantly when a verifier switches online. Removed the per-round retry from game.py
   - Verifier dashboard refreshes every 4s (was 8s)
+- Iteration 12 (speed + fixes):
+  - Config cached 2s in memory (invalidate_config() on every write). /game/state shared part cached 0.5s behind a lock, per-user part = 1 bets query + 1 wallet query. User auth cache 3s per session (admin/verifier are never cached). 15 new indexes. Game polling is adaptive (2s mid-round, 0.9s in the last 6s)
+  - Referral/welcome bonuses auto-credited on the friend's first qualifying deposit (issue_coupon auto=True). Leftover "available" referral/welcome coupons credited at startup. rewards_earned counts all referral coupons. Optimistic claim in Messages
+  - Bet % buttons 100/75/50/25 under the stake presets (floor to ₹, capped at max stake)
+  - Deposit page always opens on the amount screen. An unfinished deposit shows a "Continue" card. A new deposit cancels the old one. "Change amount / Cancel" on the QR screen
+  - Deposits go ONLY to an online verifier's account whose QR file exists. Admin Accounts tab shows "Missing · re-upload" for broken QRs
 
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)

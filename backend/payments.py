@@ -50,7 +50,9 @@ async def eligible_deposit_account(amount: int):
             {"status": "pending"}, {"status": "initiated", "created_at": {"$gte": since}}]}},
         {"$group": {"_id": "$verifier_id", "n": {"$sum": 1}}}]).to_list(500)}
     accs = await db.payment_accounts.find({"verifier_id": {"$in": list(verifiers)}, "status": "active",
-                                           "deposit_limit": {"$gte": amount}}, NOID).to_list(1000)
+                                           "deposit_limit": {"$gte": amount}, "qr_path": {"$nin": [None, ""]}}, NOID).to_list(1000)
+    have = set(await db.files.distinct("storage_path", {"storage_path": {"$in": [a["qr_path"] for a in accs]}, "is_deleted": False}))
+    accs = [a for a in accs if a["qr_path"] in have]
     by_v = {}
     for a in accs:
         if loads.get(a["verifier_id"], 0) < verifiers[a["verifier_id"]].get("deposit_capacity", 0):

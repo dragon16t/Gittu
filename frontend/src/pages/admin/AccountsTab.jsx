@@ -92,7 +92,7 @@ export default function AccountsTab() {
       actions={<Btn primary onClick={() => setModal({ kind: "edit" })} disabled={!verifiers.length} data-testid="add-account-button">+ Add account</Btn>}>
       <DataTable rows={rows} minW={1000} cols={[
         { label: "Account", render: (r) => <><div className="font-semibold">{r.name}</div><div className="text-[11px] text-neutral-500">{r.payment_details}</div></> },
-        { label: "UPI", key: "upi_id" }, { label: "QR", render: (r) => (r.has_qr ? "✓" : "—") }, { label: "Verifier", render: (r) => vname(r.verifier_id) },
+        { label: "UPI", key: "upi_id" }, { label: "QR", render: (r) => (r.has_qr ? "✓" : r.qr_missing ? <span className="text-red-400 font-semibold" data-testid={`qr-missing-${r.id}`}>Missing · re-upload</span> : "—") }, { label: "Verifier", render: (r) => vname(r.verifier_id) },
         { label: "Deposit / Wd limit", render: (r) => `${inr(r.deposit_limit)} / ${inr(r.withdrawal_limit)}` },
         { label: "Available", render: (r) => inr(r.available_funds) }, { label: "Committed", render: (r) => inr(r.committed) },
         { label: "Status", render: (r) => <Badge status={r.status} /> },

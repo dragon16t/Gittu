@@ -223,7 +223,7 @@ async def deposit_assign(body: DepositIn, user=Depends(current_user)):
     await check_rate(f"deposit:{user['id']}", 10, 60)
     pick = await eligible_deposit_account(body.amount)
     if not pick:
-        raise HTTPException(503, "Deposits are temporarily unavailable. No payment verifier is online, please try again shortly.")
+        raise HTTPException(503, "Deposits are temporarily unavailable. No payment account is online right now, please try again in a few minutes.")
     await hit_rate(f"deposit:{user['id']}")
     v, acc = pick
     d = {"id": uid(), "user_id": user["id"], "username": user["username"], "amount": body.amount, "status": "initiated",

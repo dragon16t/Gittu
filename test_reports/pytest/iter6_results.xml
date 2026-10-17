@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="4" time="4.573" timestamp="2026-10-17T02:15:44.814902+00:00" hostname="agent-env-baf79df7-828a-40fa-ac23-28ddabbeff87"><testcase classname="tests.test_iter6_referral_deposit.TestReferral" name="test_01_register_pair" time="1.099"><failure message="AssertionError: assert 'test_refbrnnhb' == 'TEST_refBrnnhb'&#10;  &#10;  - TEST_refBrnnhb&#10;  + test_refbrnnhb">tests/test_iter6_referral_deposit.py:66: in test_01_register_pair
+    assert ref["referrals"][0]["username"] == f"TEST_refB{SUF}"
+E   AssertionError: assert 'test_refbrnnhb' == 'TEST_refBrnnhb'
+E     
+E     - TEST_refBrnnhb
+E     + test_refbrnnhb</failure></testcase><testcase classname="tests.test_iter6_referral_deposit.TestReferral" name="test_02_cancel_flow" time="0.424" /><testcase classname="tests.test_iter6_referral_deposit.TestReferral" name="test_03_first_deposit_rewards" time="1.503" /><testcase classname="tests.test_iter6_referral_deposit.TestReferral" name="test_04_second_deposit_no_bonus" time="1.022" /></testsuite></testsuites>
