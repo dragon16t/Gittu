@@ -22,6 +22,7 @@ export default function GameTab() {
       max_round_exposure: data.config.max_round_exposure / 100, company_reserve: data.config.company_reserve / 100,
       commission_bps: data.config.commission_bps / 100, commission_basis: data.config.commission_basis,
       promo_reserve: data.config.promo_reserve / 100,
+      referral_bonus: data.config.referral_bonus / 100, friend_bonus: data.config.friend_bonus / 100,
     });
   });
   useEffect(() => {
@@ -36,7 +37,8 @@ export default function GameTab() {
       await api.put("/admin/config", {
         mode: f.mode, min_stake: toPaise(f.min_stake), max_stake: toPaise(f.max_stake), max_round_exposure: toPaise(f.max_round_exposure),
         company_reserve: toPaise(f.company_reserve), commission_bps: Math.round(parseFloat(f.commission_bps) * 100),
-        commission_basis: f.commission_basis, promo_reserve: toPaise(f.promo_reserve), ...extra,
+        commission_basis: f.commission_basis, promo_reserve: toPaise(f.promo_reserve),
+        referral_bonus: toPaise(f.referral_bonus), friend_bonus: toPaise(f.friend_bonus), ...extra,
       });
       toast.success("Configuration saved");
       api.get("/admin/config/history").then(({ data }) => setHist(data));
@@ -73,6 +75,8 @@ export default function GameTab() {
           <Input label="Max round exposure (₹)" type="number" value={f.max_round_exposure} onChange={set("max_round_exposure")} testid="config-max-exposure" />
           <Input label="Company reserve (₹)" type="number" value={f.company_reserve} onChange={set("company_reserve")} testid="config-reserve" />
           <Input label="Promo reserve (₹)" type="number" value={f.promo_reserve} onChange={set("promo_reserve")} testid="config-promo-reserve" />
+          <Input label="Referrer bonus (₹)" type="number" value={f.referral_bonus} onChange={set("referral_bonus")} testid="config-referral-bonus" />
+          <Input label="Friend welcome bonus (₹)" type="number" value={f.friend_bonus} onChange={set("friend_bonus")} testid="config-friend-bonus" />
           <Input label="Default verifier commission (%)" type="number" value={f.commission_bps} onChange={set("commission_bps")} testid="config-commission" />
           <Select label="Commission basis (agreement)" value={f.commission_basis} onChange={set("commission_basis")} testid="config-commission-basis"
             options={[["deposits", "Verified deposits"], ["withdrawals", "Completed withdrawals"], ["both", "Both"]]} />

@@ -34,12 +34,12 @@ export default function AdminLogin() {
       const { data } = await api.post("/admin/auth/mfa", { mfa_token: mfa.mfa_token, code });
       if (data.backup_codes) { setCodes(data.backup_codes); setUser(data.user); return; }
       setUser(data.user);
-      nav("/admin");
+      nav("/keepalittle");
     } catch (err) { toast.error(errMsg(err)); }
   };
   return (
     <AuthCard testid="admin-login-page" title={codes ? "Backup codes" : mfa ? "Two-factor verification" : "Admin sign in"} subtitle="Restricted administrative console">
-      {codes ? <BackupCodes codes={codes} onDone={() => nav("/admin")} /> : !mfa ? (
+      {codes ? <BackupCodes codes={codes} onDone={() => nav("/keepalittle")} /> : !mfa ? (
         <form onSubmit={login} className="space-y-4">
           <Field label="Admin username" value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} testid="admin-username-input" />
           <Field label="Password" type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} testid="admin-password-input" />

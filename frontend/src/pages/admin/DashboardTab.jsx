@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { errMsg } from "@/lib/api";
 import { useBrand, setBrand } from "@/lib/brand";
 import { DataTable, Section, Btn } from "./ui";
+import LiveVisitors from "./LiveVisitors";
 
 function BrandEditor() {
   const brand = useBrand();
@@ -49,6 +50,7 @@ export default function DashboardTab() {
   return (
     <>
       <BrandEditor />
+      <LiveVisitors />
       <Section title="Financial overview" testid="admin-financial-overview"
         actions={<span className="text-xs text-neutral-500">{d.users} users · {d.discrepancies} ledger discrepancies</span>}>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">

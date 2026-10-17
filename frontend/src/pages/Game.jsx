@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Mail, Gift, Wallet as WalletIcon, Headset, Trophy } from "lucide-react";
-import { api, errMsg, inr, newKey, toPaise } from "@/lib/api";
+import { api, errMsg, inr, inr0, newKey, toPaise } from "@/lib/api";
 import { TopBar, CountdownRing, SideCircle, StakePicker, ResultStage, RecentResults } from "@/components/game/GameParts";
 import { useMusic, useRevealAnimation } from "@/components/game/hooks";
 import { Confetti } from "@/components/game/Confetti";
@@ -41,6 +41,7 @@ export default function Game() {
   const [busy, setBusy] = useState(false);
   const [coupons, setCoupons] = useState(0);
   const [burst, setBurst] = useState(0);
+  const [referBonus, setReferBonus] = useState(30000);
   const offset = useRef(0);
   const animated = useRef(null);
   const toasted = useRef(null);
@@ -49,18 +50,24 @@ export default function Game() {
 
   const load = useCallback(async () => {
     try {
+      const t0 = Date.now();
       const { data } = await api.get("/game/state");
-      offset.current = new Date(data.server_time).getTime() - Date.now();
+      const t1 = Date.now();
+      const off = new Date(data.server_time).getTime() - (t0 + t1) / 2;
+      offset.current = offset.current === 0 || t1 - t0 < 400 ? off : offset.current;
       setState(data);
     } catch {}
   }, []);
 
   useEffect(() => {
     load();
-    const p = setInterval(load, 1000);
+    const p = setInterval(() => !document.hidden && load(), 1000);
     const t = setInterval(() => setNow(Date.now()), 250);
+    const vis = () => !document.hidden && load();
+    document.addEventListener("visibilitychange", vis);
     api.get("/coupons").then(({ data }) => setCoupons(data.filter((c) => c.status === "available").length)).catch(() => {});
-    return () => { clearInterval(p); clearInterval(t); };
+    api.get("/promo/rules").then(({ data }) => setReferBonus(data.bonus)).catch(() => {});
+    return () => { clearInterval(p); clearInterval(t); document.removeEventListener("visibilitychange", vis); };
   }, [load]);
 
   const round = state?.round;
@@ -123,13 +130,13 @@ export default function Game() {
   const myBets = state?.my_bets || [];
   return (
     <div className="relative z-10 mx-auto max-w-[480px] h-[100dvh] flex flex-col overflow-hidden" data-testid="game-page">
-      <header className="shrink-0 z-30 px-4 pt-2 pb-1.5 bg-black/80 backdrop-blur-xl border-b border-white/5" data-testid="sticky-header">
+      <header className="shrink-0 z-30 px-4 safe-top pb-1.5 bg-black/80 backdrop-blur-xl border-b border-white/5" data-testid="sticky-header">
         <TopBar balance={state?.balance} music={music} onToggleMusic={toggleMusic} />
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <Link to="/refer" data-testid="refer-earn-badge"
-            className="inline-flex items-center gap-1.5 h-7 pl-0.5 pr-3 rounded-full border border-white/25 bg-gradient-to-r from-white/15 to-white/5 text-[11px] font-semibold whitespace-nowrap hover:border-white/50 transition-colors">
+            className="inline-flex items-center gap-1.5 h-7 pl-0.5 pr-3 rounded-full border border-[#d4af37]/45 bg-gradient-to-r from-[#d4af37]/15 to-white/5 text-[11px] font-bold whitespace-nowrap hover:border-[#d4af37]/80 transition-colors">
             <span className="h-6 w-6 rounded-full silver-btn flex items-center justify-center"><Gift size={11} /></span>
-            Refer & Earn ₹300
+            <span className="gold-text">Refer & Earn {inr0(referBonus)}</span>
           </Link>
           <div className="flex items-center gap-1.5">
             <IconLink to="/messages" icon={Mail} label="Messages" testid="nav-messages" badge={coupons} />

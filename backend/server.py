@@ -18,6 +18,7 @@ import routes_verifier  # noqa: E402
 import routes_admin  # noqa: E402
 import promotions  # noqa: E402
 import tickets  # noqa: E402
+import presence  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 ORIGINS = [o.strip() for o in os.environ["CORS_ORIGINS"].split(",") if o.strip()]
@@ -37,6 +38,7 @@ api.include_router(routes_verifier.router)
 api.include_router(routes_admin.router)
 api.include_router(promotions.router)
 api.include_router(tickets.router)
+api.include_router(presence.router)
 app.include_router(api)
 
 
@@ -67,6 +69,10 @@ async def create_indexes():
     await db.wallets.create_index("user_id", unique=True)
     await db.ledger.create_index("key", unique=True)
     await db.fair_seeds.create_index("number", unique=True)
+    await db.presence.create_index("sid", unique=True)
+    await db.presence.create_index([("ip", 1), ("at", -1)])
+    await db.presence.create_index("at", expireAfterSeconds=600)
+    await db.visitor_stats.create_index("at", expireAfterSeconds=172800)
     await db.ledger.create_index([("user_id", 1), ("created_at", -1)])
     await db.rounds.create_index("number", unique=True)
     await db.rounds.create_index("id", unique=True)
@@ -106,6 +112,7 @@ async def startup():
         log.error(f"Storage init failed: {e}")
     app.state.engine = asyncio.create_task(engine_loop())
     app.state.bonus = asyncio.create_task(promotions.bonus_loop())
+    app.state.visitors = asyncio.create_task(presence.snapshot_loop())
 
 
 @app.on_event("shutdown")

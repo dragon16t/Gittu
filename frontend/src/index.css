@@ -146,7 +146,10 @@
     100% { transform: translate(var(--drift), 105vh) rotate(calc(var(--rot) + 720deg)); opacity: 0.2; }
 }
 .ticker { mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
-.ticker-track { display: inline-flex; gap: 28px; white-space: nowrap; animation: ticker 28s linear infinite; }
+.ticker-track { display: inline-flex; gap: 28px; white-space: nowrap; animation: ticker 14s linear infinite; }
+.gold-text { background: linear-gradient(180deg, #fff3c4 0%, #e9c766 40%, #c99a2e 70%, #f5dc8a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.safe-top { padding-top: max(8px, env(safe-area-inset-top)); }
+@media (max-height: 680px) { .side-ring { width: min(24vw, 13dvh) !important; } }
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 .glow-line { height: 1px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent); }

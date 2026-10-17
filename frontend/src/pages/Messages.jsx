@@ -1,46 +1,55 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Ticket } from "lucide-react";
 import { api, errMsg, inr, dt } from "@/lib/api";
 import { MobileShell, Badge, Empty } from "@/components/common";
 
-const Coupon = ({ c, onClaim }) => (
-  <div className="panel !rounded-3xl p-5 flex items-center gap-4" data-testid={`coupon-${c.id.slice(0, 8)}`}>
-    <div className="h-12 w-12 shrink-0 rounded-full silver-btn flex items-center justify-center"><Ticket size={20} /></div>
-    <div className="flex-1 min-w-0">
-      <div className="font-bold">{c.title}</div>
-      <div className="text-xs text-neutral-400">{inr(c.amount)} bonus · {c.wager_multiplier}× wagering ({inr(c.amount * c.wager_multiplier)} in bets)</div>
-      <div className="text-[11px] text-neutral-500">
-        {c.status === "available" ? `Auto-credited if unclaimed by ${dt(c.expires_at)}` : dt(c.claimed_at || c.created_at)}
+const KIND = { referral: "Referral bonus", welcome: "Welcome bonus", daily: "Daily bonus" };
+
+const Coupon = ({ c, onClaim, busy }) => (
+  <div className={`panel !rounded-3xl p-4 relative overflow-hidden ${c.status === "available" ? "border-white/25" : "opacity-80"}`} data-testid={`coupon-${c.id.slice(0, 8)}`}>
+    {c.status === "available" && <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/10 blur-3xl" />}
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-400">{KIND[c.kind] || "Bonus"}</div>
+        <div className="text-[26px] font-black silver-text leading-tight">{inr(c.amount)}</div>
+        <div className="text-[12px] text-neutral-300 truncate">{c.title}</div>
       </div>
+      {c.status === "available" ? (
+        <button onClick={() => onClaim(c)} disabled={busy} className="silver-btn rounded-full h-10 px-6 font-extrabold text-sm tracking-wide shrink-0" data-testid={`claim-coupon-${c.id.slice(0, 8)}`}>
+          {busy ? "…" : "CLAIM"}
+        </button>
+      ) : <Badge status={c.status} />}
     </div>
-    {c.status === "available" ? (
-      <button onClick={() => onClaim(c)} className="silver-btn rounded-full h-10 px-5 font-bold text-sm" data-testid={`claim-coupon-${c.id.slice(0, 8)}`}>Claim</button>
-    ) : <Badge status={c.status} />}
+    <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px]">
+      <span className="text-neutral-400"><b className="text-white">{c.wager_multiplier}× wagering</b> · bet {inr(c.amount * c.wager_multiplier)}</span>
+      <span className="text-neutral-500">{c.status === "available" ? `Auto-credit ${dt(c.expires_at)}` : dt(c.claimed_at || c.created_at)}</span>
+    </div>
   </div>
 );
 
 export default function Messages() {
   const [coupons, setCoupons] = useState(null);
   const [notes, setNotes] = useState(null);
+  const [busy, setBusy] = useState(null);
   const load = () => {
     api.get("/coupons").then(({ data }) => setCoupons(data));
     api.get("/notifications").then(({ data }) => setNotes(data));
   };
   useEffect(() => { load(); }, []);
   const claim = async (c) => {
+    setBusy(c.id);
     try {
       const { data } = await api.post(`/coupons/${c.id}/claim`);
       toast.success(`${inr(c.amount)} added to wallet. Balance ${inr(data.balance)}`);
       load();
-    } catch (e) { toast.error(errMsg(e)); }
+    } catch (e) { toast.error(errMsg(e)); } finally { setBusy(null); }
   };
   return (
     <MobileShell title="Messages" testid="messages-page">
       <h3 className="mb-3 font-semibold text-neutral-300">Coupons</h3>
       <div className="space-y-3" data-testid="coupon-list">
         {coupons === null ? <Empty>Loading…</Empty> : coupons.length === 0 && <Empty>No coupons yet. A ₹10 daily bonus arrives every day.</Empty>}
-        {(coupons || []).map((c) => <Coupon key={c.id} c={c} onClaim={claim} />)}
+        {(coupons || []).map((c) => <Coupon key={c.id} c={c} onClaim={claim} busy={busy === c.id} />)}
       </div>
       <h3 className="mt-8 mb-3 font-semibold text-neutral-300">Notifications</h3>
       <div className="space-y-2" data-testid="notification-list">

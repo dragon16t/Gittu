@@ -29,6 +29,8 @@ class ConfigIn(BaseModel):
     commission_basis: Optional[str] = None
     promotions_enabled: Optional[bool] = None
     promo_reserve: Optional[int] = None
+    referral_bonus: Optional[int] = None
+    friend_bonus: Optional[int] = None
 
 
 class AdjustIn(BaseModel):
@@ -173,6 +175,9 @@ async def update_config(body: ConfigIn, request: Request, admin=Depends(current_
         raise HTTPException(400, "Invalid commission basis")
     if upd.get("min_stake", 1) <= 0 or ("min_stake" in upd and "max_stake" in upd and upd["min_stake"] > upd["max_stake"]):
         raise HTTPException(400, "Invalid stake limits")
+    for k in ("referral_bonus", "friend_bonus"):
+        if k in upd and not (0 <= upd[k] <= 1000000):
+            raise HTTPException(400, "Bonus must be between ₹0 and ₹10,000")
     before = await get_config()
     upd = {k: v for k, v in upd.items() if before.get(k) != v}
     if not upd:

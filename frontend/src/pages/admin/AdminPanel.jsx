@@ -31,7 +31,7 @@ export default function AdminPanel() {
   const { user, setUser } = useSession();
   const nav = useNavigate();
   const Active = TABS.find((t) => t[0] === tab)[3];
-  const logout = async () => { await api.post("/admin/auth/logout").catch(() => {}); setUser(false); nav("/admin/login"); };
+  const logout = async () => { await api.post("/admin/auth/logout").catch(() => {}); setUser(false); nav("/keepalittle/login"); };
   return (
     <div className="relative z-10 min-h-screen flex flex-col lg:flex-row" data-testid="admin-panel">
       <aside className="lg:w-64 lg:min-h-screen border-b lg:border-b-0 lg:border-r border-white/10 bg-black/60 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen">

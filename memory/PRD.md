@@ -49,6 +49,15 @@ Later additions:
   - Sound fixed: audio now unlocks on click/touchend/keydown (pointerdown doesn't count on mobile), and the AudioContext is unlocked during the user tap, so music, bet and win sounds work
   - Read-only integrity audit: 0 wrong settlements, every stake and win has a ledger entry, and every wallet balance matches its ledger. No financial data is ever deleted (only sessions, rate limits and 2FA codes expire)
 
+- Iteration 7:
+  - Referral: only the friend's very first verified deposit counts (₹500 or more). Referrer coupon (default ₹300) plus friend "Welcome bonus" coupon (default ₹150), both 5× wagering, claim or auto-credit after 72h. Admin sets the amounts (config referral_bonus/friend_bonus). GET /api/promo/rules
+  - Gold Refer & Earn page (split bonus cards, steps, a richer wagering table) and richer coupon cards in Messages
+  - Live visitors: POST /api/presence/ping every 20s (max 5 visitor IDs per IP). GET /api/admin/live, plus a 5-minute snapshot history kept for 2 days (GET /api/admin/visitors/history) with a recharts graph on the dashboard
+  - Admin frontend moved to /keepalittle and /keepalittle/login (/admin redirects to /)
+  - Ticker 2× faster, BLACKBA favicon and PWA icons, manifest, sw.js, Add to Home Screen banner (Android install prompt, iOS instructions)
+  - Safe-area headers, tighter side circles on screens shorter than 680px, timer clock offset adjusted for network delay, refetch when the tab becomes visible
+  - Login no longer needs the T&C tick (sign-up still requires it)
+
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)
 - P1: Styled modals instead of window.prompt/confirm in the verifier portal

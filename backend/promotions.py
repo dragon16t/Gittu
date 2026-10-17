@@ -11,7 +11,7 @@ router = APIRouter()
 P = {"_id": 0}
 IST = timezone(timedelta(hours=5, minutes=30))
 DAILY_AMOUNT, DAILY_WAGER = 1000, 3
-REFERRAL_AMOUNT, REFERRAL_WAGER, REFERRAL_MIN_DEPOSIT = 30000, 5, 50000
+REFERRAL_WAGER, REFERRAL_MIN_DEPOSIT = 5, 50000
 DEPOSIT_WAGER = 1
 MIN_WITHDRAWAL = 30000
 
@@ -70,15 +70,22 @@ async def redeem(coupon: dict, status: str) -> bool:
 
 async def on_deposit_verified(dep: dict):
     await add_wagering(dep["user_id"], dep["amount"] * DEPOSIT_WAGER)
-    if dep["amount"] < REFERRAL_MIN_DEPOSIT:
-        return
     u = await db.users.find_one({"id": dep["user_id"]}, P)
-    if not u or not u.get("referred_by"):
+    if not u or not u.get("referred_by") or u.get("referral_checked") or u.get("referral_rewarded"):
         return
-    c = await issue_coupon(u["referred_by"], "referral", REFERRAL_AMOUNT, REFERRAL_WAGER,
+    earlier = await db.deposits.count_documents({"user_id": u["id"], "status": "verified", "id": {"$ne": dep["id"]}})
+    lock = await db.users.update_one({"id": u["id"], "referral_checked": {"$exists": False}},
+                                     {"$set": {"referral_checked": True, "referral_first_deposit": dep["amount"]}})
+    if not lock.modified_count or earlier or dep["amount"] < REFERRAL_MIN_DEPOSIT:
+        return
+    cfg = await get_config()
+    c = await issue_coupon(u["referred_by"], "referral", cfg["referral_bonus"], REFERRAL_WAGER,
                            f"Referral bonus for inviting {u['username']}", f"referral:{u['id']}", u["id"], hours=72)
-    if c:
-        await db.users.update_one({"id": u["id"]}, {"$set": {"referral_rewarded": True}})
+    if not c:
+        return
+    await issue_coupon(u["id"], "welcome", cfg["friend_bonus"], REFERRAL_WAGER, "Welcome bonus · referral first deposit",
+                       f"welcome:{u['id']}", u["referred_by"], hours=72)
+    await db.users.update_one({"id": u["id"]}, {"$set": {"referral_rewarded": True}})
 
 
 async def daily_for(user_id: str):
@@ -124,6 +131,17 @@ async def referrals(user=Depends(current_user)):
     code = u.get("referral_code") or await assign_referral_code(user["id"])
     rows = await db.users.find({"referred_by": user["id"]}, {"_id": 0, "username": 1, "created_at": 1,
                                                              "referral_rewarded": 1}).to_list(500)
-    earned = await db.coupons.count_documents({"user_id": user["id"], "kind": "referral", "status": {"$ne": "available"}})
-    return {"code": code, "referrals": rows, "rewards_earned": earned * REFERRAL_AMOUNT,
-            "rules": {"bonus": REFERRAL_AMOUNT, "min_deposit": REFERRAL_MIN_DEPOSIT, "wager": REFERRAL_WAGER}}
+    agg = await db.coupons.aggregate([{"$match": {"user_id": user["id"], "kind": "referral", "status": {"$ne": "available"}}},
+                                      {"$group": {"_id": None, "s": {"$sum": "$amount"}}}]).to_list(1)
+    cfg = await get_config()
+    return {"code": code, "referrals": rows, "rewards_earned": agg[0]["s"] if agg else 0,
+            "rules": {"bonus": cfg["referral_bonus"], "friend_bonus": cfg["friend_bonus"],
+                      "min_deposit": REFERRAL_MIN_DEPOSIT, "wager": REFERRAL_WAGER, "deposit_wager": DEPOSIT_WAGER,
+                      "daily_bonus": DAILY_AMOUNT, "daily_wager": DAILY_WAGER}}
+
+
+@router.get("/promo/rules")
+async def promo_rules():
+    cfg = await get_config()
+    return {"bonus": cfg["referral_bonus"], "friend_bonus": cfg["friend_bonus"], "min_deposit": REFERRAL_MIN_DEPOSIT,
+            "wager": REFERRAL_WAGER, "deposit_wager": DEPOSIT_WAGER, "daily_bonus": DAILY_AMOUNT, "daily_wager": DAILY_WAGER}

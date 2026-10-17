@@ -4,6 +4,8 @@ import { Toaster } from "sonner";
 import "@/App.css";
 import { SessionProvider, useSession } from "@/lib/session";
 import { AlertPoller } from "@/components/AlertPoller";
+import { VisitorPing } from "@/components/VisitorPing";
+import { InstallBanner } from "@/components/InstallBanner";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Forgot from "@/pages/auth/Forgot";
@@ -47,6 +49,7 @@ function Guard({ login }) {
 const Portal = ({ portal }) => (
   <SessionProvider portal={portal}>
     <AlertPoller />
+    {portal === "user" && <><VisitorPing /><InstallBanner /></>}
     <Outlet />
   </SessionProvider>
 );
@@ -75,9 +78,9 @@ export default function App() {
             </Route>
           </Route>
           <Route element={<Portal portal="admin" />}>
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route element={<Guard login="/admin/login" />}>
-              <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/keepalittle/login" element={<AdminLogin />} />
+            <Route element={<Guard login="/keepalittle/login" />}>
+              <Route path="/keepalittle" element={<AdminPanel />} />
             </Route>
           </Route>
           <Route element={<Portal portal="verifier" />}>
