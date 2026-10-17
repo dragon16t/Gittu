@@ -21,15 +21,18 @@ export default function Deposit() {
     setDep(data);
     if (data.has_qr) blobUrl(`/deposits/${data.id}/qr`).then(setQr).catch(() => setQr(null));
   };
+  const [pending, setPending] = useState(null);
   useEffect(() => {
     load();
-    api.get("/deposits/active").then(({ data }) => data && open(data)).catch(() => {});
+    api.get("/deposits/active").then(({ data }) => setPending(data || null)).catch(() => {});
   }, []);
+  const cancelDep = (d) => api.post(`/deposits/${d.id}/cancel`).catch(() => {});
 
   const assign = async () => {
     setBusy(true);
     setUnavailable("");
     try {
+      if (pending) { await cancelDep(pending); setPending(null); }
       const { data } = await api.post("/deposits/assign", { amount: toPaise(amount) });
       open(data);
     } catch (e) {
@@ -56,6 +59,12 @@ export default function Deposit() {
     <MobileShell title="Deposit" testid="deposit-page">
       {!dep ? (
         <div className="panel p-5 space-y-4 rise">
+          {pending && (
+            <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 flex items-center justify-between gap-3" data-testid="deposit-resume-card">
+              <div className="text-xs text-neutral-300">Unfinished deposit of <b className="text-white">{inr(pending.amount)}</b></div>
+              <button onClick={() => { open(pending); setPending(null); }} className="silver-btn rounded-full h-8 px-4 text-xs font-bold" data-testid="deposit-resume-button">Continue</button>
+            </div>
+          )}
           <Field label="Deposit amount (₹)" prefix="₹" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} testid="deposit-amount-input" />
           <div className="grid grid-cols-4 gap-2">
             {PRESETS.map((p) => (
@@ -84,7 +93,7 @@ export default function Deposit() {
           <div className="text-xs text-neutral-500">Account: {dep.account_name}</div>
           <Field label="UTR / Reference number" value={utr} onChange={(e) => setUtr(e.target.value.toUpperCase())} testid="deposit-utr-input" />
           <SilverButton onClick={submit} disabled={busy || utr.length < 6} data-testid="submit-deposit-button">SUBMIT DEPOSIT REQUEST</SilverButton>
-          <button onClick={() => { api.post(`/deposits/${dep.id}/cancel`).catch(() => {}); setDep(null); load(); }} className="w-full text-sm text-neutral-400" data-testid="deposit-cancel-button">Cancel</button>
+          <button onClick={() => { cancelDep(dep); setAmount(String(dep.amount / 100)); setDep(null); setQr(null); load(); }} className="w-full text-sm text-neutral-400" data-testid="deposit-cancel-button">Change amount / Cancel</button>
         </div>
       )}
       <Link to="/support?kind=deposit" className="mt-5 panel !rounded-2xl h-14 px-4 flex items-center gap-3 text-sm" data-testid="deposit-support-link">
