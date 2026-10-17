@@ -58,6 +58,12 @@ Later additions:
   - Safe-area headers, tighter side circles on screens shorter than 680px, timer clock offset adjusted for network delay, refetch when the tab becomes visible
   - Login no longer needs the T&C tick (sign-up still requires it)
 
+- Iteration 8:
+  - Add to Home Screen banner removed completely
+  - The whole document scrolls (html/body no longer overflow-hidden). Header and bet bar are sticky, overflow-x: clip
+  - Timer: freezes at 00:00 ("Closed", then "Result") until the reveal animation ends. The server holds the result 2s (RESULT_HOLD_SECONDS) before the next round. A missed reveal (tab hidden) still shows the correct last result
+  - Bet bar has a fixed-height hint/bets line, so it no longer jumps when a bet is placed. The input is blurred after a bet so the keyboard closes
+
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)
 - P1: Styled modals instead of window.prompt/confirm in the verifier portal

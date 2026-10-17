@@ -86,6 +86,9 @@ export default function Game() {
     if (showing && animated.current !== showing.id) {
       animated.current = showing.id;
       reveal.run(showing.result);
+    } else if (!showing && last && animated.current !== last.id) {
+      animated.current = last.id;
+      reveal.show(last.result);
     }
     if (last && toasted.current !== last.id && state.last_round_bets.length && animated.current === last.id) {
       toasted.current = last.id;
@@ -103,10 +106,11 @@ export default function Game() {
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const serverNow = now + offset.current;
-  const remaining = round?.status === "betting" ? (new Date(round.closes_at).getTime() - serverNow) / 1000 : 0;
-  const bettingOpen = round?.status === "betting" && remaining > 0;
+  const holding = reveal.spinning || round?.status === "revealing" || round?.status === "closed";
+  const remaining = round?.status === "betting" && !holding ? (new Date(round.closes_at).getTime() - serverNow) / 1000 : 0;
+  const bettingOpen = round?.status === "betting" && !holding && remaining > 0;
   const mult = ((state?.config?.multiplier_bps || 195) / 100).toFixed(2);
-  const statusLabel = state?.paused ? "Paused" : bettingOpen ? "Next round" : round ? "Revealing" : "Starting";
+  const statusLabel = state?.paused ? "Paused" : bettingOpen ? "Next round" : holding ? "Result" : round ? "Closed" : last ? "Result" : "Starting";
 
   const placeBet = async () => {
     unlockAudio();
@@ -119,6 +123,7 @@ export default function Game() {
       const { data } = await api.post("/game/bet", { side, amount: paise, client_key: newKey() });
       playBetSound();
       toast.success(`Bet placed: ${side} ${inr(paise)} · ID ${data.bet.id.slice(0, 8)}`);
+      document.activeElement?.blur?.();
       load();
     } catch (e) {
       toast.error(errMsg(e));
@@ -151,7 +156,7 @@ export default function Game() {
       <main className="flex-1 px-4 pt-2 pb-3 flex flex-col justify-evenly gap-[clamp(8px,1.4dvh,14px)]">
         <div className="relative shrink-0 panel !rounded-[24px] px-4 py-[clamp(6px,1.2dvh,12px)] overflow-hidden" data-testid="game-board">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-            <span className="text-[10px] text-neutral-500 mono justify-self-start" data-testid="round-number">Round #{round?.number || "—"}</span>
+            <span className="text-[10px] text-neutral-500 mono justify-self-start" data-testid="round-number">Round #{round?.number || last?.number || "—"}</span>
             <CountdownRing label={statusLabel} value={bettingOpen ? fmtTime(remaining) : "00:00"}
               progress={bettingOpen ? remaining / (state?.config?.round_seconds || 30) : 0} />
             <span className={`text-[10px] justify-self-end ${bettingOpen ? "text-emerald-400" : "text-neutral-500"}`} data-testid="round-status">{bettingOpen ? "Betting open" : "Betting closed"}</span>
@@ -168,11 +173,9 @@ export default function Game() {
 
       <footer className="sticky bottom-0 shrink-0 z-30 px-4 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] bg-black/85 backdrop-blur-xl border-t border-white/10 space-y-1.5" data-testid="sticky-bet-bar">
         <StakePicker amount={amount} setAmount={setAmount} />
-        {myBets.length > 0 && (
-          <div className="text-center text-[11px] text-neutral-400 truncate" data-testid="my-round-bets">
-            Your bets: {myBets.map((b) => `${b.side} ${inr(b.amount)}`).join(" · ")}
-          </div>
-        )}
+        <div className="h-4 text-center text-[11px] leading-4 text-neutral-400 truncate" data-testid="my-round-bets">
+          {myBets.length > 0 ? `Your bets: ${myBets.map((b) => `${b.side} ${inr(b.amount)}`).join(" · ")}` : bettingOpen ? "Pick ODD or EVEN, then place your bet" : "Wait for the result. The next round starts after it"}
+        </div>
         <button onClick={placeBet} disabled={busy || !bettingOpen} data-testid="place-bet-button"
           className="silver-btn rounded-full h-[clamp(40px,6dvh,48px)] w-full text-[clamp(15px,2.3dvh,18px)] font-extrabold tracking-wide">
           {busy ? "PLACING…" : bettingOpen ? `PLACE BET${side ? ` · ${side}` : ""}` : "BETTING CLOSED"}

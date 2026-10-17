@@ -39,11 +39,20 @@ export const useMusic = () => {
 export const useRevealAnimation = () => {
   const [label, setLabel] = useState(null);
   const [final, setFinal] = useState(false);
+  const [spinning, setSpinning] = useState(false);
   const timers = useRef([]);
+  const show = (result) => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    setSpinning(false);
+    setLabel(result);
+    setFinal(true);
+  };
   const run = (result, onDone) => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
     setFinal(false);
+    setSpinning(true);
     let t = 0;
     let delay = 28;
     let cur = Math.random() < 0.5 ? "ODD" : "EVEN";
@@ -54,8 +63,8 @@ export const useRevealAnimation = () => {
       cur = cur === "ODD" ? "EVEN" : "ODD";
       delay *= t < 1700 ? 1.02 : 1.22;
     }
-    timers.current.push(setTimeout(() => { setLabel(result); setFinal(true); onDone && onDone(); }, Math.max(t + 260, 2400)));
+    timers.current.push(setTimeout(() => { setLabel(result); setFinal(true); setSpinning(false); onDone && onDone(); }, Math.max(t + 260, 2400)));
   };
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
-  return { label, final, run, setLabel, setFinal };
+  return { label, final, spinning, run, show, setLabel, setFinal };
 };

@@ -8,6 +8,7 @@ from core import db, now, iso, uid, sha, get_config, ledger_credit, alert, log, 
 
 ROUND_SECONDS = 30
 REVEAL_SECONDS = 3
+RESULT_HOLD_SECONDS = 2
 
 
 def payout_for(amount: int, bps: int) -> int:
@@ -166,6 +167,7 @@ async def run_round():
     await record_result(rnd)
     await asyncio.sleep(REVEAL_SECONDS)
     await settle_round(rnd["id"])
+    await asyncio.sleep(RESULT_HOLD_SECONDS)
     await retry_unassigned_withdrawals()
 
 
