@@ -68,6 +68,10 @@ Later additions:
   - eligible_deposit_account: 3 queries in total (verifiers, aggregated loads, accounts) instead of 2 per verifier. Picks the online verifier with the LEAST open deposits; random (SystemRandom) among ties; at-capacity verifiers skipped; then a random account of that verifier
   - In-memory file cache (300 entries) in core.get_file/put_file, QR cache warmed at startup (server.warm_qr_cache). The deposit QR response has Cache-Control 24h
   - Deposit page shows UPI details immediately while the QR loads in the background (pulse placeholder)
+- Iteration 10 (safe file storage):
+  - Cloudinary (cloud dcvuqcqjn, keys in backend/.env) is the backup copy of EVERY upload (QR codes, ticket proofs). type=authenticated (private, signed-URL read). put_file writes to both stores and succeeds if either works. get_file order: memory cache, then primary storage, then Cloudinary fallback
+  - Startup backfill (core.backup_files_to_cloudinary) copies any file not yet backed up. Nothing is ever deleted
+  - GET /api/deposits/active restores the open (initiated, under 30 min) deposit plus its QR after a page refresh
 
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)

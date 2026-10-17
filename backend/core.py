@@ -8,6 +8,9 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 
 import bcrypt
+import cloudinary
+import cloudinary.uploader
+import cloudinary.utils
 import jwt
 import requests
 from fastapi import Request, HTTPException
@@ -252,6 +255,22 @@ async def reserved_settle(user_id: str, amount: int, typ: str, key: str, meta: d
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
 APP_NAME = os.environ["APP_NAME"]
+cloudinary.config(cloud_name=os.environ["CLOUDINARY_CLOUD_NAME"], api_key=os.environ["CLOUDINARY_API_KEY"],
+                  api_secret=os.environ["CLOUDINARY_API_SECRET"], secure=True)
+
+
+def _cld_put(path: str, data: bytes) -> dict:
+    r = cloudinary.uploader.upload(data, public_id=path.rsplit(".", 1)[0], type="authenticated",
+                                   resource_type="auto", overwrite=False)
+    return {"cld_public_id": r["public_id"], "cld_resource_type": r["resource_type"], "cld_format": r.get("format")}
+
+
+def _cld_get(rec: dict):
+    url, _ = cloudinary.utils.cloudinary_url(rec["cld_public_id"], resource_type=rec["cld_resource_type"],
+                                             type="authenticated", sign_url=True, format=rec.get("cld_format"))
+    r = requests.get(url, timeout=60)
+    r.raise_for_status()
+    return r.content
 _storage_key = None
 
 
@@ -280,12 +299,25 @@ def _get(path):
 
 async def put_file(folder: str, filename: str, data: bytes, ctype: str, owner: str) -> str:
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
-    res = await asyncio.to_thread(_put, f"{APP_NAME}/{folder}/{uid()}.{ext}", data, ctype)
-    _cache_put(res["path"], (data, ctype))
-    await db.files.insert_one({"id": uid(), "storage_path": res["path"], "original_filename": filename,
-                               "content_type": ctype, "size": res.get("size"), "owner": owner,
+    path, size, cld = f"{APP_NAME}/{folder}/{uid()}.{ext}", len(data), {}
+    try:
+        res = await asyncio.to_thread(_put, path, data, ctype)
+        path, size = res["path"], res.get("size", size)
+    except Exception:
+        log.exception("primary storage upload failed")
+        path = None
+    try:
+        cld = await asyncio.to_thread(_cld_put, path or f"{APP_NAME}/{folder}/{uid()}.{ext}", data)
+    except Exception:
+        log.exception("cloudinary upload failed")
+    if not path and not cld:
+        raise HTTPException(503, "Upload failed, please try again")
+    path = path or f"cld:{cld['cld_public_id']}"
+    _cache_put(path, (data, ctype))
+    await db.files.insert_one({"id": uid(), "storage_path": path, "original_filename": filename,
+                               "content_type": ctype, "size": size, "owner": owner, **cld,
                                "is_deleted": False, "created_at": iso()})
-    return res["path"]
+    return path
 
 
 _FILE_CACHE: dict = {}
@@ -303,7 +335,28 @@ async def get_file(path: str):
     rec = await db.files.find_one({"storage_path": path, "is_deleted": False})
     if not rec:
         raise HTTPException(404, "File not found")
-    data, ct = await asyncio.to_thread(_get, path)
-    item = (data, rec.get("content_type") or ct)
+    ct = rec.get("content_type") or "application/octet-stream"
+    data = None
+    if not path.startswith("cld:"):
+        try:
+            data, sct = await asyncio.to_thread(_get, path)
+            ct = rec.get("content_type") or sct
+        except Exception:
+            log.warning("primary storage read failed for %s", path)
+    if data is None and rec.get("cld_public_id"):
+        data = await asyncio.to_thread(_cld_get, rec)
+    if data is None:
+        raise HTTPException(404, "File not available")
+    item = (data, ct)
     _cache_put(path, item)
     return item
+
+
+async def backup_files_to_cloudinary():
+    async for rec in db.files.find({"cld_public_id": {"$exists": False}, "is_deleted": False}, {"_id": 0}):
+        try:
+            data, _ = await asyncio.to_thread(_get, rec["storage_path"])
+            cld = await asyncio.to_thread(_cld_put, rec["storage_path"], data)
+            await db.files.update_one({"id": rec["id"]}, {"$set": cld})
+        except Exception:
+            log.warning("cloudinary backup skipped for %s", rec["storage_path"])

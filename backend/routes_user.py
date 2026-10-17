@@ -1,3 +1,4 @@
+from datetime import timedelta
 import re
 
 from fastapi import APIRouter, Request, Depends, HTTPException, Response
@@ -210,6 +211,15 @@ async def deposit_assign(body: DepositIn, user=Depends(current_user)):
          "account_id": acc["id"], "verifier_id": v["id"], "utr": None, "created_at": iso()}
     await db.deposits.insert_one(dict(d))
     return public_deposit(d, acc)
+
+
+@router.get("/deposits/active")
+async def active_deposit(user=Depends(current_user)):
+    since = iso(now() - timedelta(minutes=30))
+    d = await db.deposits.find_one({"user_id": user["id"], "status": "initiated", "created_at": {"$gte": since}}, P,
+                                   sort=[("created_at", -1)])
+    acc = await db.payment_accounts.find_one({"id": d["account_id"]}, P) if d else None
+    return public_deposit(d, acc) if acc else None
 
 
 @router.get("/deposits/{dep_id}/qr")

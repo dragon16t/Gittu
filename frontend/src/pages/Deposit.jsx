@@ -16,16 +16,22 @@ export default function Deposit() {
   const [list, setList] = useState([]);
   const [unavailable, setUnavailable] = useState("");
   const load = () => api.get("/deposits").then(({ data }) => setList(data));
-  useEffect(() => { load(); }, []);
+  const open = (data) => {
+    setQr(data.has_qr ? "loading" : null);
+    setDep(data);
+    if (data.has_qr) blobUrl(`/deposits/${data.id}/qr`).then(setQr).catch(() => setQr(null));
+  };
+  useEffect(() => {
+    load();
+    api.get("/deposits/active").then(({ data }) => data && open(data)).catch(() => {});
+  }, []);
 
   const assign = async () => {
     setBusy(true);
     setUnavailable("");
     try {
       const { data } = await api.post("/deposits/assign", { amount: toPaise(amount) });
-      setQr(data.has_qr ? "loading" : null);
-      setDep(data);
-      if (data.has_qr) blobUrl(`/deposits/${data.id}/qr`).then(setQr).catch(() => setQr(null));
+      open(data);
     } catch (e) {
       if (e?.response?.status === 503) setUnavailable(errMsg(e));
       else toast.error(errMsg(e));

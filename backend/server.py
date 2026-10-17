@@ -10,7 +10,7 @@ from fastapi import FastAPI, APIRouter, Request  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
 from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 
-from core import db, client, init_storage, log, get_file  # noqa: E402
+from core import db, client, init_storage, log, get_file, backup_files_to_cloudinary  # noqa: E402
 from game import engine_loop  # noqa: E402
 import routes_auth  # noqa: E402
 import routes_user  # noqa: E402
@@ -59,6 +59,7 @@ app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=ORIGINS
 
 
 async def warm_qr_cache():
+    await backup_files_to_cloudinary()
     async for a in db.payment_accounts.find({"status": "active", "qr_path": {"$ne": None}}, {"_id": 0, "qr_path": 1}):
         try:
             await get_file(a["qr_path"])
