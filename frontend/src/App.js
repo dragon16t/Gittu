@@ -5,7 +5,6 @@ import "@/App.css";
 import { SessionProvider, useSession } from "@/lib/session";
 import { AlertPoller } from "@/components/AlertPoller";
 import { VisitorPing } from "@/components/VisitorPing";
-import { InstallBanner } from "@/components/InstallBanner";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Forgot from "@/pages/auth/Forgot";
@@ -49,7 +48,7 @@ function Guard({ login }) {
 const Portal = ({ portal }) => (
   <SessionProvider portal={portal}>
     <AlertPoller />
-    {portal === "user" && <><VisitorPing /><InstallBanner /></>}
+    {portal === "user" && <VisitorPing />}
     <Outlet />
   </SessionProvider>
 );

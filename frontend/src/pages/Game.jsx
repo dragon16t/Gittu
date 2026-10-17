@@ -129,8 +129,8 @@ export default function Game() {
 
   const myBets = state?.my_bets || [];
   return (
-    <div className="relative z-10 mx-auto max-w-[480px] h-[100dvh] flex flex-col overflow-hidden" data-testid="game-page">
-      <header className="shrink-0 z-30 px-4 safe-top pb-1.5 bg-black/80 backdrop-blur-xl border-b border-white/5" data-testid="sticky-header">
+    <div className="relative z-10 mx-auto max-w-[480px] min-h-[100dvh] flex flex-col" data-testid="game-page">
+      <header className="sticky top-0 shrink-0 z-30 px-4 safe-top pb-1.5 bg-black/80 backdrop-blur-xl border-b border-white/5" data-testid="sticky-header">
         <TopBar balance={state?.balance} music={music} onToggleMusic={toggleMusic} />
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <Link to="/refer" data-testid="refer-earn-badge"
@@ -148,7 +148,7 @@ export default function Game() {
 
       <Confetti burstKey={burst} />
       <WinTicker winners={state?.winners || []} />
-      <main className="flex-1 min-h-0 overflow-y-auto px-4 pt-1 pb-1.5 flex flex-col justify-evenly gap-[clamp(6px,1dvh,10px)]">
+      <main className="flex-1 px-4 pt-2 pb-3 flex flex-col justify-evenly gap-[clamp(8px,1.4dvh,14px)]">
         <div className="relative shrink-0 panel !rounded-[24px] px-4 py-[clamp(6px,1.2dvh,12px)] overflow-hidden" data-testid="game-board">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             <span className="text-[10px] text-neutral-500 mono justify-self-start" data-testid="round-number">Round #{round?.number || "—"}</span>
@@ -166,7 +166,7 @@ export default function Game() {
         <RecentResults results={state?.recent || []} />
       </main>
 
-      <footer className="shrink-0 z-30 px-4 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] bg-black/85 backdrop-blur-xl border-t border-white/10 space-y-1.5" data-testid="sticky-bet-bar">
+      <footer className="sticky bottom-0 shrink-0 z-30 px-4 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] bg-black/85 backdrop-blur-xl border-t border-white/10 space-y-1.5" data-testid="sticky-bet-bar">
         <StakePicker amount={amount} setAmount={setAmount} />
         {myBets.length > 0 && (
           <div className="text-center text-[11px] text-neutral-400 truncate" data-testid="my-round-bets">
