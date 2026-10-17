@@ -26,6 +26,7 @@ fernet = Fernet(os.environ["DATA_ENC_KEY"].encode())
 log = logging.getLogger("oddeven")
 NOID = {"_id": 0}
 SESSION_HOURS = 12
+USER_SESSION_HOURS = 24 * 30
 
 
 def now():
@@ -104,15 +105,16 @@ async def clear_rate(key: str):
 async def create_session(response, user: dict, request: Request):
     sid = secrets.token_urlsafe(24)
     role = user["role"]
+    hours = USER_SESSION_HOURS if role == "user" else SESSION_HOURS
     await db.sessions.insert_one({
         "id": sid, "user_id": user["id"], "role": role, "ip": client_ip(request),
         "ua": request.headers.get("user-agent", "")[:200], "created_at": iso(),
-        "expires_at": now() + timedelta(hours=SESSION_HOURS), "revoked": False,
+        "expires_at": now() + timedelta(hours=hours), "revoked": False,
     })
     token = jwt.encode({"sub": user["id"], "sid": sid, "role": role, "type": "access",
-                        "exp": now() + timedelta(hours=SESSION_HOURS)}, JWT_SECRET, algorithm="HS256")
+                        "exp": now() + timedelta(hours=hours)}, JWT_SECRET, algorithm="HS256")
     response.set_cookie(f"sess_{role}", token, httponly=True, secure=True, samesite="none",
-                        max_age=SESSION_HOURS * 3600, path="/")
+                        max_age=hours * 3600, path="/")
     return sid
 
 

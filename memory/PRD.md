@@ -91,6 +91,7 @@ Later additions:
   - Deposits get expires_at = created + 10 min (DEPOSIT_WINDOW_MIN). The dispatcher loop (every 5s) marks stale "initiated" deposits as "expired". Verifier load, /deposits/active and resume all use the 10-min window
   - UTR can still be submitted on an initiated/expired deposit up to 30 min after creation (UTR_GRACE_MIN), so players who paid late don't lose money
   - Deposit QR screen: "Pay within MM:SS" countdown with a progress bar (turns red in the last 60s), and a "Payment window closed" note when it reaches zero
+- Iteration 15: Player login lasts 30 days (core.USER_SESSION_HOURS = 720; cookie Max-Age 2592000, server session still revocable). Admin and verifier sessions stay at 12h
 
 ## Backlog
 - P1: Audit referral and daily bonus rules (both referee and referrer get the bonus; daily ₹10 via a Claim button every 24h, 3× wagering)
