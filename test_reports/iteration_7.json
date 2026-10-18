@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 7: Auto Mode, Mode 4 No-Win, Bonus send-to-all, login page, game regression. Backend pytest 7/7 passed (test_iter7_auto_nowin_bonus.py): config validation (auto counts >100, <0 and both 0 return 400; 'bogus' mode returns 400; 'nowin' accepted). Auto Mode ON with 1/1 sets auto_pos=0, and the next rounds #1406/#1407/#1408 were random/minority/random with auto=true. While Auto was ON, public-state, state config.mode and round.mode were null, and /game/fair returned active=false with upcoming=[]. No-Win: ODD-only bet in round #1409 gave EVEN and the bet was lost (balance -1000). Bets on both sides in round #1410 gave all_lose=true, total_payout 0, and both wallets were debited exactly. Bonus all_users sent 44 of 44. Frontend: admin Game Configuration auto-mode-panel and toggle work on 1920x800 and 390x844 (no horizontal overflow; status shows 'ON · Round #1412: Standard 1/3 · Next: Standard' and switches back to OFF). config-mode-select includes 'Mode 4 · No-Win'. Bonus tab: the all-users checkbox hides the username and random inputs, the confirm dialog says 'Send ₹1 to ALL active users?', and the toast says 'Bonus sent to 44 of 44 user(s)'. /login at 390x844 fits one screen (scrollHeight 844) and the dice fades into black. The game page as player1 at 390x844: ODD selection, the ₹10 preset and place bet all work (balance 1353 -> 1343, toast shown, my-round-bets updated). The guest game page renders. No page errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "public_round / round.all_lose", "issue": "all_lose is not exposed to players and the frontend never references it. In a No-Win round with bets on both sides, the reveal shows e.g. EVEN while EVEN bettors lose. This matches the spec ('displayed dice random') but may confuse players."},
+      {"endpoint": "PUT /api/admin/config auto_mode:true", "issue": "The round in progress when Auto is turned ON keeps the old dropdown mode with auto=false, so its round.mode is still visible to players in public_round until the next round."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Game Configuration · auto-mode-status", "issues": ["Right after toggling ON, the status says 'Round #1412: Standard 1/3', but #1412 was created before the toggle and is not an auto round. Consider 'Starts next round: Standard 1/3'."]},
+      {"screen": "Admin Bonus history", "issues": ["The User column shows short user IDs (e.g. a9955420) instead of usernames."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter7_auto_nowin_bonus.py", "/app/test_reports/pytest/iter7.xml"],
+  "action_items": [
+    "Optional: surface all_lose in public_round and show a 'No winners this round' message on the reveal",
+    "Optional: label the auto status as 'next round' when the current round is not an auto round",
+    "Optional: show the username in the bonus history table"
+  ],
+  "critical_code_review_comments": [
+    "pytest.ini enables xdist (-n). Tests that change the shared game config race with each other, so run them with -n 0.",
+    "risk_gate runs on cfg['mode'] before the auto override. If the dropdown is 'risk' while Auto is ON, the risk pause logic still applies even though rounds run random or minority. place_bet does the same for the exposure check."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter7_auto_nowin_bonus.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Placed 10-rupee bets: player1 in rounds #1409, #1410 and #1414 (UI), friend1 in #1410. Admin bonuses: 'Test all' ₹1 to all 44 active users twice (the suite ran twice because the -k filter was ignored) and 'Test all UI' ₹1 once. The config was changed temporarily and restored to mode=random, auto_mode=false, auto_standard=3, auto_minority=6, paused=false (verified).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run test_iter7_auto_nowin_bonus.py with '-n 0'. It takes about 3.5 minutes, sends a ₹1 bonus to all users and restores the config in fixture teardown. Admin testids: auto-mode-panel, auto-mode-toggle, auto-standard-input, auto-minority-input, auto-mode-status, config-mode-select, admin-tab-bonus, bonus-send-all-users, bonus-send-amount, bonus-send-title, bonus-send-button (uses window.confirm).",
+  "test_credentials": "Taken from /app/memory/test_credentials.md and all valid"
+}

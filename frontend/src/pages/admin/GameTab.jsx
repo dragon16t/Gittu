@@ -38,7 +38,7 @@ const AutoMode = ({ cfg, f, set, current, onToggle }) => {
       </div>
       <div className="text-sm" data-testid="auto-mode-status">
         {cfg.auto_mode
-          ? <span className="text-emerald-300">ON · Round #{current?.number || "—"}: {now} · Next: {next}</span>
+          ? <span className="text-emerald-300">{current?.auto ? `ON · Round #${current.number}: ${now} · Next: ${next}` : "ON · Starts next round: Standard 1/" + std}</span>
           : <span className="text-neutral-500">OFF · using "{cfg.mode}" mode. Save the round counts, then turn on.</span>}
       </div>
     </div>

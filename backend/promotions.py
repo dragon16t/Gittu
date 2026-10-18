@@ -172,6 +172,9 @@ class BonusCfgIn(BaseModel):
 async def bonus_cfg(admin=Depends(current_admin)):
     cfg = await get_config()
     hist = await db.coupons.find({"kind": "admin_bonus"}, P).sort("created_at", -1).to_list(100)
+    names = {u["id"]: u["username"] async for u in db.users.find({"id": {"$in": list({h["user_id"] for h in hist})}}, {"_id": 0, "id": 1, "username": 1})}
+    for h in hist:
+        h["username"] = names.get(h["user_id"], h["user_id"][:8])
     return {"daily_bonus": cfg.get("daily_bonus", DAILY_AMOUNT), "referral_bonus": cfg["referral_bonus"],
             "friend_bonus": cfg["friend_bonus"], "promo_reserve": cfg.get("promo_reserve", 0),
             "promotions_enabled": cfg["promotions_enabled"], "history": hist}

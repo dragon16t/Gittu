@@ -111,3 +111,16 @@ Later additions:
 - P2: Height-adaptive layout for phones shorter than 740px
 - P2: Push/SMS notifications
 - P2: Legal/compliance review before real money goes live
+
+
+## Update — June 2026 (Auto Mode, Mode 4, Bonus-to-all, perf)
+- Auto Mode (Admin → Game Configuration): toggle + editable counts (default 3 Standard → 6 Minority, repeating). Cycle restarts at Standard 1 on every turn-on (config.auto_pos counter, incremented atomically per round in game.run_round). Rounds flagged auto=true; mode is hidden from players (public_round/config.mode = null; /game/fair inactive).
+- Mode 4 "No-Win" (mode="nowin"): one-sided bets → opposite result; both sides bet → round.all_lose=true, every bet loses; no bets → random. Separate from the auto cycle.
+- Bonus: "Send to ALL active users" (all_users flag on POST /api/admin/bonus/send). Bonus history shows usernames.
+- Login: dice image fades into the black background; form card is transparent.
+- Performance: React.memo on game components, blur removed from game sticky bars, faster page-enter animation.
+- Tested: iteration_7 (all passed).
+
+## Backlog
+- P1: Full E2E Franchisee flow test (partner link → signup banner → deposit → commission)
+- P2: Optional player-facing "House round" notice for No-Win all-lose rounds

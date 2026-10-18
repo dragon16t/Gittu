@@ -53,7 +53,7 @@ export default function BonusTab() {
         <div className="flex justify-end"><Btn primary onClick={send} data-testid="bonus-send-button">Send bonus</Btn></div>
       </Section>
       <Section title="Bonuses sent by admin" testid="bonus-history">
-        <DataTable rows={d.history} cols={[{ label: "Date", render: (r) => dt(r.created_at) }, { label: "User", render: (r) => <span className="mono">{r.user_id.slice(0, 8)}</span> },
+        <DataTable rows={d.history} cols={[{ label: "Date", render: (r) => dt(r.created_at) }, { label: "User", render: (r) => <span className="mono">{r.username}</span> },
           { label: "Title", key: "title" }, { label: "Amount", render: (r) => inr(r.amount) }, { label: "Wager", render: (r) => `${r.wager_multiplier}×` }, { label: "Status", key: "status" }]} />
       </Section>
     </>
