@@ -81,6 +81,7 @@ async def shared_state() -> dict:
             b["name"] = (n[:2] + "***" + n[-1:]) if len(n) > 4 else (n[0] + "***")
         _SHARED["val"] = {
             "cur_id": cur["id"] if cur else None, "last_id": last["id"] if last else None,
+            "all_lose": {r["id"] for r in (cur, last) if r and r.get("all_lose")},
             "body": {"winners": wins, "round": public_round(cur), "last_round": public_round(last),
                      "recent": [r["result"] for r in recent], "paused": cfg["paused"],
                      "config": {"min_stake": cfg["min_stake"], "max_stake": cfg["max_stake"], "multiplier_bps": PAYOUT_BPS,
@@ -101,7 +102,17 @@ async def game_state(user=Depends(current_user)):
     ids = [i for i in (sh["cur_id"], sh["last_id"]) if i]
     bets = await db.bets.find({"round_id": {"$in": ids}, "user_id": user["id"]}, P).to_list(100) if ids else []
     w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0, "balance": 1})
-    return {"server_time": iso(), **sh["body"],
+    body = dict(sh["body"])
+    for key in ("round", "last_round"):
+        r = body.get(key)
+        mine = [b for b in bets if r and b["round_id"] == r["id"]]
+        if r and r["id"] in sh["all_lose"] and mine and r.get("result"):
+            res = "EVEN" if mine[0]["side"] == "ODD" else "ODD"
+            dice = r["dice"] if (r["dice"] % 2 == 1) == (res == "ODD") else r["dice"] % 6 + 1
+            body[key] = {**r, "result": res, "dice": dice, "result_hash": None, "salt": None}
+            if key == "last_round" and body.get("recent"):
+                body["recent"] = [res, *body["recent"][1:]]
+    return {"server_time": iso(), **body,
             "my_bets": [b for b in bets if b["round_id"] == sh["cur_id"]],
             "last_round_bets": [b for b in bets if b["round_id"] == sh["last_id"]],
             "balance": w["balance"] if w else 0}
@@ -170,7 +181,15 @@ async def my_bets(user=Depends(current_user)):
 @router.get("/game/history")
 async def round_history(user=Depends(current_user)):
     rows = await db.rounds.find({"status": "settled"}, {"_id": 0, "number": 1, "result": 1, "settled_at": 1, "id": 1,
-                                                        "result_hash": 1, "salt": 1, "dice": 1}).sort("number", -1).to_list(100)
+                                                        "result_hash": 1, "salt": 1, "dice": 1, "all_lose": 1}).sort("number", -1).to_list(100)
+    lose_ids = [r["id"] for r in rows if r.pop("all_lose", False)]
+    if lose_ids:
+        sides = {b["round_id"]: b["side"] async for b in db.bets.find({"round_id": {"$in": lose_ids}, "user_id": user["id"]}, {"_id": 0, "round_id": 1, "side": 1})}
+        for r in rows:
+            if r["id"] in sides:
+                r["result"] = "EVEN" if sides[r["id"]] == "ODD" else "ODD"
+                r["dice"] = r["dice"] if (r["dice"] % 2 == 1) == (r["result"] == "ODD") else r["dice"] % 6 + 1
+                r["result_hash"] = r["salt"] = None
     return rows
 
 

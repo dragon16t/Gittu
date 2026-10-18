@@ -124,3 +124,4 @@ Later additions:
 ## Backlog
 - P1: Full E2E Franchisee flow test (partner link → signup banner → deposit → commission)
 - P2: Optional player-facing "House round" notice for No-Win all-lose rounds
+- Mode 4 per-player view (June 2026): in an all-lose No-Win round, each player sees the opposite of their own side (ODD bettor sees EVEN, EVEN bettor sees ODD) in /game/state (round, last_round, recent[0]) and /game/history; hash/salt hidden for those rows. Verified via backend/tests/nowin_check.py.

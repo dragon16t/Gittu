@@ -16,7 +16,7 @@ export default function History() {
             <div className="flex-1 min-w-0">
               <div className="font-semibold">Round #{r.number} · Dice {r.dice}</div>
               <div className="text-[11px] text-neutral-500">{dt(r.settled_at)}</div>
-              <div className="text-[10px] text-neutral-600 mono truncate" title="sha256(round_id:dice:salt)">hash {r.result_hash} · salt {r.salt}</div>
+              {r.salt && <div className="text-[10px] text-neutral-600 mono truncate" title="sha256(round_id:dice:salt)">hash {r.result_hash} · salt {r.salt}</div>}
             </div>
           </div>
         ))}
