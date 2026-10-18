@@ -55,9 +55,9 @@ export default function Login() {
         <div className="mt-1.5 text-[clamp(12px,1.8dvh,15px)] font-bold tracking-[0.18em]"><span className="text-neutral-200">PLAY SIMPLE.</span> <span className="gold-text">WIN BIG.</span></div>
         <p className="mt-0.5 text-[clamp(11px,1.65dvh,14px)] text-neutral-200">Predict <b className="text-white">ODD</b> or <b className="text-white">EVEN</b> and win up to <b className="gold-text">1.95x</b></p>
       </header>
-      <img src={DICE} alt="Glowing dice" className="relative -mx-5 w-[calc(100%+40px)] max-w-none h-[clamp(130px,25dvh,300px)] object-cover object-center mix-blend-screen rise -mt-1 -mb-[clamp(10px,2.4dvh,26px)] [mask-image:radial-gradient(ellipse_70%_75%_at_50%_50%,black_55%,transparent_100%)] [-webkit-mask-image:radial-gradient(ellipse_70%_75%_at_50%_50%,black_55%,transparent_100%)]" data-testid="login-dice" />
+      <img src={DICE} alt="Glowing dice" className="relative -mx-5 w-[calc(100%+40px)] max-w-none h-[clamp(130px,25dvh,300px)] object-cover object-center mix-blend-lighten opacity-95 rise -mt-1 -mb-[clamp(10px,2.4dvh,26px)] [mask-image:radial-gradient(ellipse_62%_70%_at_50%_50%,black_35%,transparent_92%)] [-webkit-mask-image:radial-gradient(ellipse_62%_70%_at_50%_50%,black_35%,transparent_92%)]" data-testid="login-dice" />
       <Trio items={FEATURES} ring />
-      <form onSubmit={submit} className="relative mt-[clamp(6px,1.4dvh,16px)] rounded-3xl border border-white/12 bg-black/70 backdrop-blur-xl px-4 py-[clamp(10px,1.6dvh,16px)] shadow-2xl" data-testid="login-form">
+      <form onSubmit={submit} className="relative mt-[clamp(6px,1.4dvh,16px)] rounded-3xl border border-white/10 bg-transparent px-4 py-[clamp(10px,1.6dvh,16px)] shadow-2xl" data-testid="login-form">
         <div className="grid grid-cols-2 text-center text-[15px] font-semibold border-b border-white/10">
           <span className="pb-[clamp(6px,1dvh,10px)] text-white border-b-2 border-white" data-testid="login-tab">Login</span>
           <Link to="/register" className="pb-[clamp(6px,1dvh,10px)] text-neutral-500 hover:text-neutral-300 transition-colors" data-testid="signup-link">Sign Up</Link>

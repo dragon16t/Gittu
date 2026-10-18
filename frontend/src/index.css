@@ -165,7 +165,7 @@
 @keyframes twinkle { 0%, 100% { opacity: 0.15; transform: rotate(45deg) scale(0.6); } 50% { opacity: 0.9; transform: rotate(45deg) scale(1); } }
 
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-.rise { animation: rise 0.55s cubic-bezier(.2, .8, .2, 1) both; }
+.rise { animation: rise 0.3s cubic-bezier(.2, .8, .2, 1) both; }
 
 .field {
     background: #050505; border: 1.5px solid rgba(255, 255, 255, 0.16); border-radius: 16px;
@@ -175,7 +175,7 @@
 .field input, .field select, .field textarea { background: transparent; outline: none; width: 100%; color: #fff; }
 
 .grain::before {
-    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.05;
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.05; transform: translateZ(0); will-change: transform;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 

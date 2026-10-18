@@ -49,6 +49,8 @@ def public_round(r: dict) -> dict:
         return None
     out = {k: r.get(k) for k in ("id", "number", "status", "mode", "opens_at", "closes_at", "multiplier_bps",
                                  "reveal_ends_at", "settled_at")}
+    if r.get("auto"):
+        out["mode"] = None
     if r["status"] in ("revealing", "settled"):
         out.update(result=r.get("result"), dice=r.get("dice"), result_hash=r.get("result_hash"))
     if r["status"] == "settled":
@@ -82,7 +84,7 @@ async def shared_state() -> dict:
             "body": {"winners": wins, "round": public_round(cur), "last_round": public_round(last),
                      "recent": [r["result"] for r in recent], "paused": cfg["paused"],
                      "config": {"min_stake": cfg["min_stake"], "max_stake": cfg["max_stake"], "multiplier_bps": PAYOUT_BPS,
-                                "mode": cfg["mode"], "round_seconds": ROUND_SECONDS, "reveal_seconds": REVEAL_SECONDS}}}
+                                "mode": None if cfg.get("auto_mode") else cfg["mode"], "round_seconds": ROUND_SECONDS, "reveal_seconds": REVEAL_SECONDS}}}
         _SHARED["at"] = loop.time()
         return _SHARED["val"]
 
@@ -146,6 +148,8 @@ async def place_bet(body: BetIn, request: Request, user=Depends(current_user)):
 @router.get("/game/fair")
 async def fair_proof(user=Depends(current_user)):
     cfg = await get_config()
+    if cfg.get("auto_mode"):
+        cfg["mode"] = "auto"
     if cfg["mode"] == "fair":
         last = await db.rounds.find_one({}, P, sort=[("number", -1)])
         await ensure_commitments((last["number"] if last else 0) + 1)

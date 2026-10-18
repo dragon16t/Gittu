@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Mail, Gift, Wallet as WalletIcon, Headset, Trophy, Lock } from "lucide-react";
@@ -10,7 +10,7 @@ import { Confetti } from "@/components/game/Confetti";
 import { OutcomeCard } from "@/components/game/OutcomeCard";
 import { playBetSound, playWinSound, playTickSound, unlockAudio } from "@/lib/sfx";
 
-const WinTicker = ({ winners }) => {
+const WinTicker = memo(function WinTicker({ winners }) {
   if (!winners.length) return <div className="h-[22px] shrink-0" />;
   const items = [...winners, ...winners];
   return (
@@ -23,8 +23,9 @@ const WinTicker = ({ winners }) => {
       </div>
     </div>
   );
-};
+});
 
+const NONE = [];
 const fmtTime = (s) => `00:${String(Math.max(0, Math.ceil(s))).padStart(2, "0")}`;
 
 const IconLink = ({ to, icon: Icon, label, testid, badge }) => (
@@ -50,6 +51,8 @@ export default function Game() {
   const guestRef = useRef(true);
   guestRef.current = !user;
   const nav = useNavigate();
+  const pickOdd = useCallback(() => setSide("ODD"), []);
+  const pickEven = useCallback(() => setSide("EVEN"), []);
   const stateRef = useRef(null);
   const animated = useRef(null);
   const toasted = useRef(null);
@@ -163,7 +166,7 @@ export default function Game() {
 
   return (
     <div className="relative z-10 mx-auto max-w-[480px] min-h-[100dvh] flex flex-col" data-testid="game-page" onClickCapture={(e) => { if (!user && e.target.closest("button,a,input")) { e.preventDefault(); e.stopPropagation(); nav("/login"); } }}>
-      <header className="sticky top-0 shrink-0 z-30 px-4 safe-top pb-1.5 bg-black/80 backdrop-blur-xl border-b border-white/5" data-testid="sticky-header">
+      <header className="sticky top-0 shrink-0 z-30 px-4 safe-top pb-1.5 bg-[#050505]/95 border-b border-white/5" data-testid="sticky-header">
         <TopBar balance={state?.balance} music={music} onToggleMusic={toggleMusic} />
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <Link to="/refer" data-testid="refer-earn-badge"
@@ -181,7 +184,7 @@ export default function Game() {
 
       <Confetti burstKey={burst} />
       <OutcomeCard data={outcome} onClose={() => setOutcome(null)} />
-      <WinTicker winners={state?.winners || []} />
+      <WinTicker winners={state?.winners || NONE} />
       <main className="flex-1 px-4 pt-2 pb-3 flex flex-col justify-evenly gap-[clamp(8px,1.4dvh,14px)]">
         <div className="relative shrink-0 panel !rounded-[24px] px-4 py-[clamp(6px,1.2dvh,12px)] overflow-hidden" data-testid="game-board">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -194,16 +197,16 @@ export default function Game() {
             </span>
           </div>
           <div className="flex items-center justify-around relative mt-[clamp(2px,0.8dvh,10px)] py-[10px]">
-            <SideCircle side="ODD" multiplier={mult} active={side === "ODD"} dim={side === "EVEN"} onClick={() => setSide("ODD")} />
+            <SideCircle side="ODD" multiplier={mult} active={side === "ODD"} dim={side === "EVEN"} onClick={pickOdd} />
             <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-white/30 via-white/10 to-transparent" />
-            <SideCircle side="EVEN" multiplier={mult} active={side === "EVEN"} dim={side === "ODD"} onClick={() => setSide("EVEN")} />
+            <SideCircle side="EVEN" multiplier={mult} active={side === "EVEN"} dim={side === "ODD"} onClick={pickEven} />
           </div>
         </div>
         <ResultStage label={reveal.label} final={reveal.final} />
-        <RecentResults results={state?.recent || []} />
+        <RecentResults results={state?.recent || NONE} />
       </main>
 
-      <footer className="sticky bottom-0 shrink-0 z-30 px-4 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] bg-black/85 backdrop-blur-xl border-t border-white/10 space-y-1.5" data-testid="sticky-bet-bar">
+      <footer className="sticky bottom-0 shrink-0 z-30 px-4 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] bg-[#050505]/95 border-t border-white/10 space-y-1.5" data-testid="sticky-bet-bar">
         <StakePicker amount={amount} setAmount={setAmount} balance={state?.balance || 0} maxStake={state?.config?.max_stake} />
         <div className="h-4 text-center text-[11px] leading-4 text-neutral-400 truncate" data-testid="my-round-bets">
           {myBets.length > 0 ? `Your bets: ${myBets.map((b) => `${b.side} ${inr(b.amount)}`).join(" · ")}` : bettingOpen ? "Pick ODD or EVEN, then place your bet" : "Wait for the result. The next round starts after it"}

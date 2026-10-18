@@ -1,8 +1,9 @@
+import { memo } from "react";
 import { Link } from "react-router-dom";
 import { User, Plus, Settings, ChevronRight, X, Volume2, VolumeX } from "lucide-react";
 import { inr } from "@/lib/api";
 
-export const TopBar = ({ balance, music, onToggleMusic }) => (
+export const TopBar = memo(({ balance, music, onToggleMusic }) => (
   <div className="flex items-center justify-between gap-2">
     <div className="flex items-center gap-3 min-w-0">
       <Link to="/settings" className="h-10 w-10 shrink-0 rounded-full ghost-chip flex items-center justify-center" data-testid="profile-button">
@@ -25,7 +26,7 @@ export const TopBar = ({ balance, music, onToggleMusic }) => (
       <Link to="/settings" className="h-8 w-8 flex items-center justify-center text-neutral-300 hover:text-white" data-testid="settings-button"><Settings size={22} /></Link>
     </div>
   </div>
-);
+));
 
 export const CountdownRing = ({ label, value, progress, locked, hurry }) => {
   const r = 66;
@@ -49,7 +50,7 @@ export const CountdownRing = ({ label, value, progress, locked, hurry }) => {
   );
 };
 
-export const SideCircle = ({ side, multiplier, active, dim, onClick, disabled }) => (
+export const SideCircle = memo(({ side, multiplier, active, dim, onClick, disabled }) => (
   <button
     onClick={onClick}
     disabled={disabled}
@@ -60,11 +61,11 @@ export const SideCircle = ({ side, multiplier, active, dim, onClick, disabled })
     <span className="relative text-[clamp(17px,min(7vw,3.6dvh),34px)] font-black silver-text leading-none">{side}</span>
     <span className="relative mt-0.5 text-[clamp(10px,1.7dvh,15px)] font-bold text-neutral-200">{multiplier}x</span>
   </button>
-);
+));
 
 const PRESETS = [1000, 5000, 10000, 50000, 100000];
 const PCTS = [100, 75, 50, 25];
-export const StakePicker = ({ amount, setAmount, balance, maxStake }) => {
+export const StakePicker = memo(({ amount, setAmount, balance, maxStake }) => {
   const pick = (pct) => {
     const paise = Math.min(Math.floor((balance * pct) / 100 / 100) * 100, maxStake || Infinity);
     setAmount(paise > 0 ? String(paise / 100) : "");
@@ -103,10 +104,10 @@ export const StakePicker = ({ amount, setAmount, balance, maxStake }) => {
     </div>
   </div>
   );
-};
+});
 
 const SPARKS = [[14, 22], [26, 45], [8, 70], [20, 82], [80, 18], [86, 50], [74, 62], [92, 74], [60, 12], [36, 10]];
-export const ResultStage = ({ label, final, practice }) => (
+export const ResultStage = memo(({ label, final, practice }) => (
   <div className="panel shrink-0 relative overflow-hidden h-[clamp(76px,12.5dvh,150px)] flex items-center justify-center px-4" data-testid="result-stage">
     {SPARKS.map(([x, y], i) => (
       <span key={i} className="sparkle" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${i * 0.3}s`, width: i % 3 ? 5 : 7, height: i % 3 ? 5 : 7 }} />
@@ -118,14 +119,14 @@ export const ResultStage = ({ label, final, practice }) => (
       </div>
     </div>
   </div>
-);
+));
 
 export const ResultChip = ({ r, size = 46, testid }) => (
   <span data-testid={testid} className={`res-chip ${r === "ODD" ? "res-odd" : "res-even"}`}
     style={{ width: size, height: size, fontSize: size * 0.27 }}>{r}</span>
 );
 
-export const RecentResults = ({ results }) => (
+export const RecentResults = memo(({ results }) => (
   <div className="panel shrink-0 !rounded-2xl px-3 py-2" data-testid="recent-results">
     <div className="flex items-center justify-between mb-1.5">
       <span className="font-semibold text-xs">Recent Results</span>
@@ -142,4 +143,4 @@ export const RecentResults = ({ results }) => (
     </div>
     <div className="sr-only" data-testid="recent-results-text">{results.join(" | ")}</div>
   </div>
-);
+));

@@ -6,7 +6,7 @@ import { DataTable, Section, Input, Btn } from "./ui";
 export default function BonusTab() {
   const [d, setD] = useState(null);
   const [f, setF] = useState({});
-  const [s, setS] = useState({ username: "", random_count: "", amount: "", wager: "1", title: "Surprise bonus", credit_now: true });
+  const [s, setS] = useState({ username: "", random_count: "", amount: "", wager: "1", title: "Surprise bonus", credit_now: true, all_users: false });
   const load = () => api.get("/admin/bonus").then(({ data }) => {
     setD(data);
     setF({ daily_bonus: data.daily_bonus / 100, referral_bonus: data.referral_bonus / 100, friend_bonus: data.friend_bonus / 100 });
@@ -19,8 +19,9 @@ export default function BonusTab() {
     } catch (e) { toast.error(errMsg(e)); }
   };
   const send = async () => {
+    if (s.all_users && !window.confirm(`Send ₹${s.amount || 0} to ALL active users?`)) return;
     try {
-      const { data } = await api.post("/admin/bonus/send", { username: s.username, random_count: Number(s.random_count) || 0, amount: toPaise(s.amount),
+      const { data } = await api.post("/admin/bonus/send", { random_count: s.all_users ? 0 : Number(s.random_count) || 0, all_users: s.all_users, username: s.all_users ? "" : s.username, amount: toPaise(s.amount),
         wager: Number(s.wager) || 0, title: s.title, credit_now: s.credit_now });
       toast.success(`Bonus sent to ${data.sent} of ${data.targets} user(s)`); load();
     } catch (e) { toast.error(errMsg(e)); }
@@ -41,8 +42,9 @@ export default function BonusTab() {
       </Section>
       <Section title="Send a bonus" testid="bonus-send">
         <div className="grid md:grid-cols-3 gap-3">
-          <Input label="Username (one user)" value={s.username} onChange={(e) => setS({ ...s, username: e.target.value, random_count: "" })} testid="bonus-send-username" />
-          <Input label="…or number of random active users" type="number" value={s.random_count} onChange={(e) => setS({ ...s, random_count: e.target.value, username: "" })} testid="bonus-send-random" />
+          <label className="md:col-span-3 flex items-center gap-2 text-sm text-white font-semibold" data-testid="bonus-send-all-label"><input type="checkbox" checked={s.all_users} onChange={(e) => setS({ ...s, all_users: e.target.checked, username: "", random_count: "" })} className="h-4 w-4 accent-white" data-testid="bonus-send-all-users" /> Send to ALL active users</label>
+          {!s.all_users && <><Input label="Username (one user)" value={s.username} onChange={(e) => setS({ ...s, username: e.target.value, random_count: "" })} testid="bonus-send-username" />
+          <Input label="…or number of random active users" type="number" value={s.random_count} onChange={(e) => setS({ ...s, random_count: e.target.value, username: "" })} testid="bonus-send-random" /></>}
           <Input label="Amount per user (₹)" type="number" value={s.amount} onChange={(e) => setS({ ...s, amount: e.target.value })} testid="bonus-send-amount" />
           <Input label="Wagering multiplier (×)" type="number" value={s.wager} onChange={(e) => setS({ ...s, wager: e.target.value })} testid="bonus-send-wager" />
           <Input label="Title shown to user" value={s.title} onChange={(e) => setS({ ...s, title: e.target.value })} testid="bonus-send-title" />

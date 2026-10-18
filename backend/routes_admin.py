@@ -31,6 +31,9 @@ class ConfigIn(BaseModel):
     promo_reserve: Optional[int] = None
     referral_bonus: Optional[int] = None
     friend_bonus: Optional[int] = None
+    auto_mode: Optional[bool] = None
+    auto_standard: Optional[int] = None
+    auto_minority: Optional[int] = None
 
 
 class AdjustIn(BaseModel):
@@ -169,8 +172,8 @@ async def game_monitor(admin=Depends(current_admin)):
 @router.put("/config")
 async def update_config(body: ConfigIn, request: Request, admin=Depends(current_admin)):
     upd = {k: v for k, v in body.model_dump().items() if v is not None}
-    if "mode" in upd and upd["mode"] not in ("random", "risk", "minority", "fair"):
-        raise HTTPException(400, "Mode must be random, minority, fair or risk")
+    if "mode" in upd and upd["mode"] not in ("random", "risk", "minority", "fair", "nowin"):
+        raise HTTPException(400, "Mode must be random, minority, fair, nowin or risk")
     if "commission_basis" in upd and upd["commission_basis"] not in ("deposits", "withdrawals", "both"):
         raise HTTPException(400, "Invalid commission basis")
     if upd.get("min_stake", 1) <= 0 or ("min_stake" in upd and "max_stake" in upd and upd["min_stake"] > upd["max_stake"]):
@@ -178,10 +181,17 @@ async def update_config(body: ConfigIn, request: Request, admin=Depends(current_
     for k in ("referral_bonus", "friend_bonus"):
         if k in upd and not (0 <= upd[k] <= 1000000):
             raise HTTPException(400, "Bonus must be between ₹0 and ₹10,000")
+    for k in ("auto_standard", "auto_minority"):
+        if k in upd and not (0 <= upd[k] <= 100):
+            raise HTTPException(400, "Auto mode round counts must be between 0 and 100")
     before = await get_config()
     upd = {k: v for k, v in upd.items() if before.get(k) != v}
     if not upd:
         return before
+    if upd.get("auto_standard", before["auto_standard"]) + upd.get("auto_minority", before["auto_minority"]) < 1:
+        raise HTTPException(400, "Auto mode cycle needs at least 1 round")
+    if upd.get("auto_mode") is True:
+        upd["auto_pos"] = 0
     await db.config.update_one({"id": "game"}, {"$set": upd}, upsert=True)
     invalidate_config()
     await db.config_history.insert_one({"id": uid(), "changes": upd, "before": {k: before.get(k) for k in upd},

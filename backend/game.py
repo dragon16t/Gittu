@@ -81,7 +81,7 @@ async def settle_round(round_id: str):
             total_payout += bet.get("payout", 0)
         if bet["status"] != "accepted":
             continue
-        won = bet["side"] == result
+        won = bet["side"] == result and not rnd.get("all_lose")
         payout = payout_for(bet["amount"], bps) if won else 0
         txn = f"settle:{bet['id']}"
         upd = await db.bets.find_one_and_update(
@@ -109,6 +109,9 @@ def draw_result(mode: str = "random", totals: dict = None):
         result = "ODD" if odd < even else "EVEN"
         dice = secrets.choice([1, 3, 5] if result == "ODD" else [2, 4, 6])
         return dice, result
+    if mode == "nowin" and bool(odd) != bool(even):
+        result = "EVEN" if odd else "ODD"
+        return secrets.choice([1, 3, 5] if result == "ODD" else [2, 4, 6]), result
     dice = secrets.randbelow(6) + 1
     return dice, ("ODD" if dice % 2 else "EVEN")
 
@@ -144,8 +147,10 @@ async def record_result(rnd: dict):
         dice, result = draw_result(mode, fresh.get("totals"))
         salt = secrets.token_hex(16)
         rhash = sha(f"{rnd['id']}:{dice}:{salt}")
+    t = fresh.get("totals") or {}
+    all_lose = mode == "nowin" and t.get("odd_stake", 0) > 0 and t.get("even_stake", 0) > 0
     res = await db.rounds.update_one({"id": rnd["id"], "status": "closed", "result": None}, {"$set": {
-        "status": "revealing", "dice": dice, "result": result, "salt": salt,
+        "status": "revealing", "dice": dice, "result": result, "salt": salt, "all_lose": all_lose,
         "result_hash": rhash, "result_recorded_at": iso(), "fair": mode == "fair",
         "reveal_ends_at": iso(now() + timedelta(seconds=REVEAL_SECONDS))}})
     if res.modified_count and seed:
@@ -194,11 +199,18 @@ async def run_round():
         await asyncio.sleep(2)
         return
     last = await db.rounds.find_one({}, sort=[("number", -1)])
+    auto = bool(cfg.get("auto_mode"))
+    if auto:
+        std, mino = cfg["auto_standard"], cfg["auto_minority"]
+        c = await db.config.find_one_and_update({"id": "game"}, {"$inc": {"auto_pos": 1}})
+        pos = (c or {}).get("auto_pos", 0) % (std + mino)
+        invalidate_config()
+        cfg["mode"] = "random" if pos < std else "minority"
     if cfg["mode"] == "fair":
         await ensure_commitments((last["number"] if last else 0) + 1)
     opens = now()
     closes = opens + timedelta(seconds=ROUND_SECONDS)
-    rnd = {"id": uid(), "number": (last["number"] if last else 0) + 1, "status": "betting", "mode": cfg["mode"],
+    rnd = {"id": uid(), "number": (last["number"] if last else 0) + 1, "status": "betting", "mode": cfg["mode"], "auto": auto,
            "multiplier_bps": PAYOUT_BPS, "opens_at": iso(opens), "closes_at": iso(closes),
            "result": None, "dice": None,
            "totals": {"odd_stake": 0, "even_stake": 0, "odd_count": 0, "even_count": 0}}

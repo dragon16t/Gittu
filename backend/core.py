@@ -200,6 +200,7 @@ DEFAULT_CONFIG = {
     "paused": False, "practice_enabled": True, "max_round_exposure": 5000000, "company_reserve": 100000000,
     "commission_bps": 1000, "commission_basis": "deposits", "promotions_enabled": True,
     "promo_reserve": 10000000, "music_path": "", "referral_bonus": 30000, "friend_bonus": 15000,
+    "auto_mode": False, "auto_standard": 3, "auto_minority": 6, "auto_pos": 0,
 }
 
 

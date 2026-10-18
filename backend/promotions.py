@@ -188,6 +188,7 @@ async def bonus_cfg_set(body: BonusCfgIn, request: Request, admin=Depends(curren
 class SendBonusIn(BaseModel):
     username: str = ""
     random_count: int = Field(0, ge=0, le=500)
+    all_users: bool = False
     amount: int = Field(gt=0, le=1000000)
     wager: int = Field(1, ge=0, le=20)
     title: str = Field("Surprise bonus", min_length=2, max_length=60)
@@ -196,7 +197,9 @@ class SendBonusIn(BaseModel):
 
 @router.post("/admin/bonus/send")
 async def bonus_send(body: SendBonusIn, request: Request, admin=Depends(current_admin)):
-    if body.username.strip():
+    if body.all_users:
+        targets = [u["id"] async for u in db.users.find({"role": "user", "status": "active"}, {"_id": 0, "id": 1})]
+    elif body.username.strip():
         u = await db.users.find_one({"username": body.username.strip().lower(), "role": "user", "status": "active"}, {"_id": 0, "id": 1})
         if not u:
             raise HTTPException(404, "User not found")
@@ -205,7 +208,7 @@ async def bonus_send(body: SendBonusIn, request: Request, admin=Depends(current_
         targets = [u["id"] for u in await db.users.aggregate([{"$match": {"role": "user", "status": "active"}},
                                                               {"$sample": {"size": body.random_count}}, {"$project": {"_id": 0, "id": 1}}]).to_list(500)]
     else:
-        raise HTTPException(400, "Enter a username or a number of random users")
+        raise HTTPException(400, "Enter a username, a number of random users, or choose all users")
     batch, sent = uid()[:8], 0
     for t in targets:
         c = await issue_coupon(t, "admin_bonus", body.amount, body.wager, body.title, f"admin_bonus:{batch}:{t}", admin["id"], hours=72, auto=body.credit_now)

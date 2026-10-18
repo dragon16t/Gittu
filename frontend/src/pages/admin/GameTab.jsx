@@ -8,7 +8,41 @@ const MODES = {
   random: "Mode 1 — Standard: result drawn on the server after betting closes.",
   minority: "Mode 2 — Minority Wins: the side with the smaller total stake wins the round (equal stakes fall back to a standard draw).",
   fair: "Mode 3 — Fair Proof: results for the next 10 rounds are pre-generated and their SHA-256 hashes are published to players in advance. After each round the dice + salt are revealed so anyone can verify.",
+  nowin: "Mode 4 — No-Win: if only one side has bets, the opposite side wins. If both sides have bets, every bet loses. No bets: standard draw.",
   risk: "Mode · Financial Risk: enforces exposure limits, pauses rounds when liabilities exceed reserve and disables promotions when the promo reserve is empty.",
+};
+
+const AutoMode = ({ cfg, f, set, current, onToggle }) => {
+  const std = cfg.auto_standard, mino = cfg.auto_minority, total = std + mino || 1;
+  const pos = (Math.max(0, (cfg.auto_pos || 0) - 1)) % total;
+  const inStd = pos < std;
+  const now = inStd ? `Standard ${pos + 1}/${std}` : `Minority Wins ${pos - std + 1}/${mino}`;
+  const nextPos = (pos + 1) % total;
+  const next = nextPos < std ? "Standard" : "Minority Wins";
+  return (
+    <div className="panel !rounded-2xl p-5 flex flex-col gap-4" data-testid="auto-mode-panel">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-white">Auto Mode</div>
+          <div className="text-xs text-neutral-400">Repeats Standard rounds then Minority Wins rounds until switched off. Mode is hidden from players.</div>
+        </div>
+        <button type="button" role="switch" aria-checked={!!cfg.auto_mode} onClick={onToggle} data-testid="auto-mode-toggle"
+          className={`relative shrink-0 h-8 w-16 rounded-full border transition-colors ${cfg.auto_mode ? "bg-emerald-500/80 border-emerald-300" : "bg-neutral-800 border-white/20"}`}>
+          <span className={`absolute top-1 h-6 w-6 rounded-full bg-white transition-transform ${cfg.auto_mode ? "translate-x-8" : "translate-x-1"} left-0`} />
+          <span className="sr-only">Toggle auto mode</span>
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Standard rounds" type="number" value={f.auto_standard} onChange={set("auto_standard")} testid="auto-standard-input" />
+        <Input label="Minority Wins rounds" type="number" value={f.auto_minority} onChange={set("auto_minority")} testid="auto-minority-input" />
+      </div>
+      <div className="text-sm" data-testid="auto-mode-status">
+        {cfg.auto_mode
+          ? <span className="text-emerald-300">ON · Round #{current?.number || "—"}: {now} · Next: {next}</span>
+          : <span className="text-neutral-500">OFF · using "{cfg.mode}" mode. Save the round counts, then turn on.</span>}
+      </div>
+    </div>
+  );
 };
 
 export default function GameTab() {
@@ -23,6 +57,7 @@ export default function GameTab() {
       commission_bps: data.config.commission_bps / 100, commission_basis: data.config.commission_basis,
       promo_reserve: data.config.promo_reserve / 100,
       referral_bonus: data.config.referral_bonus / 100, friend_bonus: data.config.friend_bonus / 100,
+      auto_standard: data.config.auto_standard, auto_minority: data.config.auto_minority,
     });
   });
   useEffect(() => {
@@ -38,7 +73,8 @@ export default function GameTab() {
         mode: f.mode, min_stake: toPaise(f.min_stake), max_stake: toPaise(f.max_stake), max_round_exposure: toPaise(f.max_round_exposure),
         company_reserve: toPaise(f.company_reserve), commission_bps: Math.round(parseFloat(f.commission_bps) * 100),
         commission_basis: f.commission_basis, promo_reserve: toPaise(f.promo_reserve),
-        referral_bonus: toPaise(f.referral_bonus), friend_bonus: toPaise(f.friend_bonus), ...extra,
+        referral_bonus: toPaise(f.referral_bonus), friend_bonus: toPaise(f.friend_bonus),
+        auto_standard: parseInt(f.auto_standard, 10) || 0, auto_minority: parseInt(f.auto_minority, 10) || 0, ...extra,
       });
       toast.success("Configuration saved");
       api.get("/admin/config/history").then(({ data }) => setHist(data));
@@ -55,7 +91,7 @@ export default function GameTab() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat label="Current round" value={c ? `#${c.number}` : "—"} sub={c?.status} testid="monitor-round" />
           <Stat label="Countdown" value={`${left}s`} testid="monitor-countdown" />
-          <Stat label="Active mode" value={cfg.mode.toUpperCase()} sub={cfg.paused ? "PAUSED" : "running"} testid="monitor-mode" />
+          <Stat label="Active mode" value={cfg.auto_mode ? `AUTO · ${(c?.mode || "random").toUpperCase()}` : cfg.mode.toUpperCase()} sub={cfg.paused ? "PAUSED" : "running"} testid="monitor-mode" />
           <Stat label="Max exposure" value={inr(e?.max_exposure)} testid="monitor-exposure" />
           <Stat label="ODD stake" value={inr(e?.odd_stake)} sub={`${e?.odd_count || 0} bets`} testid="monitor-odd" />
           <Stat label="EVEN stake" value={inr(e?.even_stake)} sub={`${e?.even_count || 0} bets`} testid="monitor-even" />
@@ -68,8 +104,9 @@ export default function GameTab() {
         </div>
       </Section>
       <Section title="Game configuration" testid="admin-game-config" actions={<Btn primary onClick={() => save()} data-testid="save-config-button">Save configuration</Btn>}>
+        <AutoMode cfg={cfg} f={f} set={set} current={c} onToggle={() => save({ auto_mode: !cfg.auto_mode })} />
         <div className="panel !rounded-2xl p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Select label="Eligible game mode" value={f.mode} onChange={set("mode")} options={[["random", "Mode 1 · Standard"], ["minority", "Mode 2 · Minority Wins"], ["fair", "Mode 3 · Fair Proof"], ["risk", "Financial Risk"]]} testid="config-mode-select" />
+          <Select label={cfg.auto_mode ? "Game mode (used when Auto is OFF)" : "Eligible game mode"} value={f.mode} onChange={set("mode")} options={[["random", "Mode 1 · Standard"], ["minority", "Mode 2 · Minority Wins"], ["fair", "Mode 3 · Fair Proof"], ["nowin", "Mode 4 · No-Win"], ["risk", "Financial Risk"]]} testid="config-mode-select" />
           <Input label="Min stake (₹)" type="number" value={f.min_stake} onChange={set("min_stake")} testid="config-min-stake" />
           <Input label="Max stake (₹)" type="number" value={f.max_stake} onChange={set("max_stake")} testid="config-max-stake" />
           <Input label="Max round exposure (₹)" type="number" value={f.max_round_exposure} onChange={set("max_round_exposure")} testid="config-max-exposure" />
@@ -85,7 +122,7 @@ export default function GameTab() {
           </div>
         </div>
         <div className="panel !rounded-2xl p-5 text-sm text-neutral-300 space-y-2" data-testid="mode-rules">
-          <div>{MODES.random}</div><div className="text-amber-200">{MODES.minority}</div><div className="text-emerald-200">{MODES.fair}</div><div>{MODES.risk}</div>
+          <div>{MODES.random}</div><div className="text-amber-200">{MODES.minority}</div><div className="text-emerald-200">{MODES.fair}</div><div className="text-red-200">{MODES.nowin}</div><div>{MODES.risk}</div>
           <div className="text-neutral-500">Payout: winning stake × {cfg.multiplier_bps / 100} total return. Round 30s + 3s reveal.</div>
         </div>
       </Section>
