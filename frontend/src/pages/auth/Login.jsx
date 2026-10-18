@@ -49,7 +49,7 @@ export default function Login() {
   return (
     <div className="relative h-[100dvh] mx-auto max-w-[480px] px-5 safe-top pb-[max(10px,env(safe-area-inset-bottom))] overflow-hidden flex flex-col justify-between" data-testid="login-page">
       <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full border border-[#d4af37]/10" />
-      <div className="pointer-events-none absolute top-40 -left-32 h-80 w-80 rounded-full bg-[#d4af37]/5 blur-3xl" />
+      <div className="pointer-events-none absolute top-40 -left-32 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.06),transparent_70%)]" />
       <header className="relative text-center pt-1 rise">
         <h1 className="text-[clamp(30px,5.2dvh,46px)] leading-none font-black tracking-tight silver-text uppercase" data-testid="login-brand">{brand}</h1>
         <div className="mt-1.5 text-[clamp(12px,1.8dvh,15px)] font-bold tracking-[0.18em]"><span className="text-neutral-200">PLAY SIMPLE.</span> <span className="gold-text">WIN BIG.</span></div>

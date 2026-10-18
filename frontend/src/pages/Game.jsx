@@ -165,7 +165,7 @@ export default function Game() {
   };
 
   return (
-    <div className="relative z-10 mx-auto max-w-[480px] min-h-[100dvh] flex flex-col" data-testid="game-page" onClickCapture={(e) => { if (!user && e.target.closest("button,a,input")) { e.preventDefault(); e.stopPropagation(); nav("/login"); } }}>
+    <div className="relative z-10 mx-auto max-w-[480px] min-h-[100dvh] flex flex-col" data-testid="game-page" onClickCapture={(e) => { if (user === false && e.target.closest("button,a,input")) { e.preventDefault(); e.stopPropagation(); nav("/login"); } }}>
       <header className="sticky top-0 shrink-0 z-30 px-4 safe-top pb-1.5 bg-[#050505]/95 border-b border-white/5" data-testid="sticky-header">
         <TopBar balance={state?.balance} music={music} onToggleMusic={toggleMusic} />
         <div className="mt-1.5 flex items-center justify-between gap-2">

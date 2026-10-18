@@ -43,7 +43,7 @@
         @apply text-foreground;
         font-family: "Poppins", sans-serif;
         -webkit-font-smoothing: antialiased;
-        background: radial-gradient(120% 60% at 50% 0%, #161616 0%, #050505 55%, #000 100%) fixed;
+        background: radial-gradient(120% 60% at 50% 0%, #161616 0%, #050505 55%, #000 100%);
         min-height: 100vh;
     }
     ::selection { background: #e5e5e5; color: #000; }
@@ -83,6 +83,7 @@
 }
 .ghost-chip:hover { border-color: rgba(255, 255, 255, 0.4); }
 .ghost-chip:active { transform: scale(0.97); }
+button:active:not(:disabled), a:active { opacity: 0.85; }
 
 .side-ring {
     border-radius: 9999px;
@@ -181,3 +182,5 @@
 
 .admin-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
 .admin-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 6px; }
+
+[data-sonner-toaster], [data-sonner-toast] { pointer-events: none !important; }

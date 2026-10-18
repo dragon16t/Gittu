@@ -12,10 +12,10 @@ export const OutcomeCard = ({ data, onClose }) => {
   if (!data) return null;
   const { won, amount, staked, round, result } = data;
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center px-6 bg-black/55 backdrop-blur-[3px]" onClick={onClose} data-testid="outcome-overlay">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center px-6 bg-black/70" onClick={onClose} data-testid="outcome-overlay">
       <div className={`outcome-pop relative w-full max-w-[340px] rounded-[28px] p-[1.5px] ${won ? "bg-gradient-to-b from-[#f5dc8a] via-[#c99a2e] to-[#5b4413]" : "bg-gradient-to-b from-white/30 via-white/10 to-white/5"}`} data-testid={won ? "outcome-win-card" : "outcome-loss-card"}>
         <div className={`relative overflow-hidden rounded-[27px] px-6 pt-7 pb-6 text-center ${won ? "bg-[radial-gradient(120%_90%_at_50%_0%,#3b2d0b_0%,#120d03_55%,#050402_100%)]" : "bg-[radial-gradient(120%_90%_at_50%_0%,#2a1212_0%,#0d0707_60%,#050505_100%)]"}`}>
-          {won && <div className="absolute -top-16 left-1/2 -translate-x-1/2 h-40 w-40 rounded-full bg-[#f5dc8a]/25 blur-3xl" />}
+          {won && <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(245,220,138,0.25),transparent_70%)]" />}
           <div className={`mx-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-extrabold tracking-[0.25em] ${won ? "bg-[#f5dc8a]/15 border border-[#f5dc8a]/50 text-[#f5dc8a]" : "bg-red-500/10 border border-red-400/30 text-red-300"}`} data-testid="outcome-badge">
             {won && <Trophy size={11} />}{won ? "YOU WON" : "ROUND LOST"}
           </div>

@@ -98,7 +98,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-      <Toaster theme="dark" position="top-center" offset={112} richColors />
+      <Toaster theme="dark" position="top-center" offset={112} mobileOffset={{ top: 112 }} duration={2500} visibleToasts={2} richColors />
     </div>
   );
 }

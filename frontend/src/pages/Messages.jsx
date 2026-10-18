@@ -7,7 +7,7 @@ const KIND = { referral: "Referral bonus", welcome: "Welcome bonus", daily: "Dai
 
 const Coupon = ({ c, onClaim, busy }) => (
   <div className={`panel !rounded-3xl p-4 relative overflow-hidden ${c.status === "available" ? "border-white/25" : "opacity-80"}`} data-testid={`coupon-${c.id.slice(0, 8)}`}>
-    {c.status === "available" && <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/10 blur-3xl" />}
+    {c.status === "available" && <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.10),transparent_70%)]" />}
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-400">{KIND[c.kind] || "Bonus"}</div>

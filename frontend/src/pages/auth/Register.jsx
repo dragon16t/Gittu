@@ -56,7 +56,7 @@ export default function Register() {
         <form onSubmit={submit} className="space-y-4">
           {partner && (
             <div className="relative overflow-hidden rounded-2xl border border-[#d4af37]/45 bg-gradient-to-br from-[#d4af37]/15 via-black to-black px-4 py-3.5" data-testid="partner-welcome-banner">
-              <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#d4af37]/20 blur-2xl" />
+              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.2),transparent_70%)]" />
               <div className="text-[10px] uppercase tracking-[0.25em] gold-text font-bold">Official partner invite</div>
               <div className="mt-1 text-[17px] font-black text-white leading-tight">Welcome! You were invited by <span className="gold-text">{partner.name}</span></div>
               <div className="mt-1 text-[12px] text-neutral-300">Create your account to start playing ODD/EVEN and win up to 1.95×.</div>

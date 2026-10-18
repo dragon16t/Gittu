@@ -42,7 +42,7 @@ export default function Refer() {
   return (
     <MobileShell title="Refer & Earn" testid="refer-page">
       <div className="panel p-5 rise relative overflow-hidden" data-testid="refer-hero">
-        <div className="absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[#d4af37]/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.12),transparent_70%)]" />
         <div className="text-center">
           <div className="text-[11px] uppercase tracking-[0.35em] gold-text font-bold">Refer &amp; Earn</div>
           <h2 className="text-2xl font-black gold-text mt-1 leading-tight" data-testid="refer-headline">Both of you get paid</h2>
