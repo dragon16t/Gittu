@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Users } from "lucide-react";
-import { api, errMsg, newKey } from "@/lib/api";
+import { api, errMsg, newKey, inr } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { useMusic } from "@/components/game/hooks";
 import { playBetSound, playWinSound } from "@/lib/sfx";
 import { AppHeader } from "@/components/lobby/AppHeader";
+import { MoneyFlyers, makeFlyer } from "@/components/pulse/MoneyFlyers";
 import { PulseTicker, Arena, TimerBar, BetCard, RecentRounds } from "@/components/pulse/PulseParts";
 
 const NONE = [];
@@ -26,6 +27,8 @@ export default function Pulse() {
   const [amounts, setAmounts] = useState({ 1: 10000, 2: 20000 });
   const [busy, setBusy] = useState({});
   const [flash, setFlash] = useState({});
+  const [flyers, setFlyers] = useState([]);
+  const fly = useCallback((slot, text, win) => { const f = makeFlyer(slot, text, win); if (f) setFlyers((x) => [...x, f]); }, []);
   const showFlash = (slot, text) => { setFlash((f) => ({ ...f, [slot]: text })); setTimeout(() => setFlash((f) => ({ ...f, [slot]: null })), 1500); };
   const offset = useRef(0);
   const ref = useRef(null);
@@ -36,10 +39,17 @@ export default function Pulse() {
       const t0 = Date.now();
       const { data } = await api.get("/pulse/state");
       offset.current = new Date(data.server_time).getTime() - (t0 + Date.now()) / 2;
+      const prev = ref.current;
+      if (prev?.round?.id && prev.round.id === data.round?.id) {
+        data.my_bets.forEach((b) => {
+          const old = prev.my_bets.find((o) => o.slot === b.slot);
+          if (old?.status === "active" && b.status === "lost") fly(b.slot, `-${inr(b.stake)}`, false);
+        });
+      }
       ref.current = data;
       setState(data);
     } catch { /* retry on next poll */ }
-  }, []);
+  }, [fly]);
 
   useEffect(() => {
     let alive = true, timer;
@@ -68,8 +78,9 @@ export default function Pulse() {
         await api.post("/pulse/bet", { slot, amount: amounts[slot], client_key: newKey() });
         playBetSound();
       } else if (bet?.status === "active" && r?.status === "running") {
-        await api.post("/pulse/collect", { round_id: r.id, slot });
+        const { data } = await api.post("/pulse/collect", { round_id: r.id, slot });
         playWinSound();
+        fly(slot, `+${inr(data.bet.payout)}`, true);
       }
       await load();
     } catch (e) {
@@ -83,6 +94,7 @@ export default function Pulse() {
 
   return (
     <div className="relative z-10 mx-auto max-w-[480px] min-h-[100dvh] bg-[#050606] flex flex-col pb-3" data-testid="pulse-page">
+      <MoneyFlyers items={flyers} onDone={(id) => setFlyers((x) => x.filter((f) => f.id !== id))} />
       <AppHeader balance={state?.balance} music={music} onToggleMusic={toggleMusic} />
       <PulseTicker winners={state?.winners || NONE} />
       <div className="px-4 pt-1.5 flex items-center justify-between gap-2">
