@@ -186,3 +186,5 @@ button:active:not(:disabled), a:active { opacity: 0.85; }
 [data-sonner-toaster], [data-sonner-toast] { pointer-events: none !important; }
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+.card-glow { animation: card-glow 2.4s ease-in-out infinite; }
+@keyframes card-glow { 0%, 100% { box-shadow: 0 0 6px var(--glow); } 50% { box-shadow: 0 0 22px var(--glow), 0 0 2px var(--glow) inset; } }

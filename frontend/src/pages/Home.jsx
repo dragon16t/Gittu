@@ -30,8 +30,8 @@ const LiveWins = ({ wins }) => {
 };
 
 const GameCard = ({ to, art, accent, glow, title, tagline, testid }) => (
-  <Link to={to} data-testid={testid} className="relative flex flex-col rounded-[20px] overflow-hidden border bg-[#101313] active:scale-[0.99] transition-transform"
-    style={{ borderColor: `${accent}aa`, boxShadow: `0 0 16px ${glow}` }}>
+  <Link to={to} data-testid={testid} className="card-glow relative flex flex-col rounded-[20px] overflow-hidden border-2 bg-[#101313] active:scale-[0.99] transition-transform"
+    style={{ borderColor: accent, "--glow": glow }}>
     <div className="relative h-[clamp(150px,calc(100dvh-555px),320px)] overflow-hidden">
       <img src={art} alt="" className="absolute inset-0 h-full w-full object-cover object-top" loading="eager" />
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-[#101313]" />

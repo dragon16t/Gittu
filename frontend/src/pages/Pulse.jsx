@@ -10,8 +10,7 @@ import { PulseTicker, Arena, TimerBar, BetCard, RecentRounds } from "@/component
 
 const NONE = [];
 
-const LAG_MS = 200;
-const STALE_MS = 1200;
+const LAG_MS = 250;
 
 const multAt = (r, t, max) => {
   if (!r) return 1;
@@ -35,7 +34,7 @@ export default function Pulse() {
   const fly = useCallback((slot, text, win) => { const f = makeFlyer(slot, text, win); if (f) setFlyers((x) => [...x, f]); }, []);
   const showFlash = (slot, text) => { setFlash((f) => ({ ...f, [slot]: text })); setTimeout(() => setFlash((f) => ({ ...f, [slot]: null })), 1500); };
   const offset = useRef(0);
-  const lastOk = useRef(0);
+  const lastRun = useRef({ id: null, at: 0 });
   const ref = useRef(null);
   const pending = useRef({});
   const [music, toggleMusic] = useMusic();
@@ -58,7 +57,7 @@ export default function Pulse() {
       const t0 = Date.now();
       const { data } = await api.get("/pulse/state", { timeout: 4000 });
       offset.current = new Date(data.server_time).getTime() - (t0 + Date.now()) / 2;
-      lastOk.current = Date.now();
+      if (data.round?.status === "running") lastRun.current = { id: data.round.id, at: new Date(data.server_time).getTime() };
       const prev = ref.current;
       if (prev?.round?.id && prev.round.id === data.round?.id) {
         data.my_bets.forEach((b) => {
@@ -76,7 +75,7 @@ export default function Pulse() {
     let alive = true, timer;
     const loop = async () => {
       await load();
-      if (alive) timer = setTimeout(loop, 150);
+      if (alive) timer = setTimeout(loop, 100);
     };
     loop();
     const tick = setInterval(() => setNow(Date.now()), 50);
@@ -84,10 +83,13 @@ export default function Pulse() {
   }, [load]);
 
   const max = state?.config.max_multiplier || 3000;
-  const t = Math.min(now - LAG_MS, (lastOk.current || now) + STALE_MS) + offset.current;
+  const nowSrv = now + offset.current;
   const raw = state?.round;
-  const r = raw && (raw.status === "betting" || raw.status === "starting") && t >= new Date(raw.closes_at).getTime()
-    ? { ...raw, status: "running", anchor_m: 1, anchor_at: raw.closes_at, k: state.config.k || 0.1 } : raw;
+  const predicted = raw && (raw.status === "betting" || raw.status === "starting") && nowSrv >= new Date(raw.closes_at).getTime();
+  const r = predicted ? { ...raw, status: "running", anchor_m: 1, anchor_at: raw.closes_at, k: state.config.k || 0.1 } : raw;
+  // never display a multiplier the server has not confirmed as still running
+  const confirmed = r && lastRun.current.id === r.id ? lastRun.current.at : r ? new Date(r.closes_at).getTime() : 0;
+  const t = Math.min(nowSrv - LAG_MS, confirmed);
   const m = multAt(r, t, max);
   const secs = r?.status === "betting" ? Math.max(0, (new Date(r.closes_at).getTime() - (now + offset.current)) / 1000) : 0;
   const bets = state?.my_bets || NONE;
