@@ -122,8 +122,8 @@ export const BetCard = ({ slot, amount, setAmount, bet, status, m, busy, flash, 
         ))}
       </div>
       <button type="button" disabled={disabled} onClick={onAction} data-testid={`bet-${slot}-action-button`}
-        className={`w-full h-12 rounded-full flex items-center justify-center gap-2 font-extrabold text-[clamp(12px,3.6vw,16px)] tracking-wide transition-[background-color,box-shadow,transform] active:scale-[0.98] ${toneCls}`}>
-        {tone === "silver" && !flash && <WalletCards size={19} />}{flash || (busy ? "…" : label)}
+        className={`w-full h-12 rounded-full flex items-center justify-center gap-2 font-extrabold text-[clamp(11px,3.3vw,15px)] whitespace-nowrap tracking-normal px-2 transition-[background-color,box-shadow,transform] active:scale-[0.98] ${toneCls}`}>
+        {tone === "silver" && !flash && <WalletCards size={19} />}{flash || label}
       </button>
     </div>
   );

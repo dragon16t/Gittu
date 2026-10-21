@@ -54,9 +54,8 @@ const Live = ({ d, onTopup }) => {
         <span>Eligible: {l.eligible == null ? "—" : inr(l.eligible)}</span>
         <span>Circle 1 allocation: {l.allocation == null ? "off" : inr(l.allocation)}{l.carry_in ? ` + carry ${inr(l.carry_in)}` : ""}</span>
         <span>Circle 2 cap: {l.fixed_cap == null ? "off" : inr(l.fixed_cap)}</span>
-        <span>Logic: {LOGIC_INFO[l.logic] || "—"}</span>
+        <span>Active: {l.mode === "cap" ? "Logic 2 · Payout cap" : `Logic 1 · ${LOGIC_INFO[l.logic] || "—"}`}</span>
         {l.cap_hit && <span className="text-red-400 font-semibold">Payout cap reached — round ended</span>}
-        {l.na_applied && <span className="text-amber-300">No-active-player phase</span>}
       </div>
     </Section>
   );
@@ -140,34 +139,56 @@ const Logic2 = ({ cfg, save }) => {
 };
 
 const Phases = ({ cfg, save }) => {
-  const [f, setF] = useState({ empty_below_pct: cfg.empty_below_pct, empty_split: cfg.empty_split, empty_max: cfg.empty_max, no_active_enabled: cfg.no_active_enabled, na_min: cfg.na_min, na_max: cfg.na_max });
+  const [f, setF] = useState({ empty_below_pct: cfg.empty_below_pct, empty_split: cfg.empty_split, empty_max: cfg.empty_max });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
-    <Card title="Empty & no-active-player rounds" testid="arena-phases"
-      sub={`No stakes → random end: ${f.empty_below_pct}% under ${f.empty_split}×, rest up to ${f.empty_max}×. Everyone collected → continues to a pre-committed endpoint in the no-active range.`}
-      onSave={() => save("phases", { ...f, empty_below_pct: +f.empty_below_pct, empty_split: +f.empty_split, empty_max: +f.empty_max, na_min: +f.na_min, na_max: +f.na_max })}>
+    <Card title="Empty rounds (no stakes)" testid="arena-phases"
+      sub={`No stakes → random end: ${f.empty_below_pct}% under ${f.empty_split}×, rest up to ${f.empty_max}×. In Logic 2, when every player has collected, the round also ends by this rule.`}
+      onSave={() => save("phases", { empty_below_pct: +f.empty_below_pct, empty_split: +f.empty_split, empty_max: +f.empty_max })}>
       <div className="grid sm:grid-cols-3 gap-3">
-        <Input label="Empty round: % under split" type="number" value={f.empty_below_pct} onChange={set("empty_below_pct")} testid="arena-empty-pct" />
-        <Input label="Empty round: split (×)" type="number" value={f.empty_split} onChange={set("empty_split")} testid="arena-empty-split" />
-        <Input label="Empty round: max (×)" type="number" value={f.empty_max} onChange={set("empty_max")} testid="arena-empty-max" />
+        <Input label="% under split" type="number" value={f.empty_below_pct} onChange={set("empty_below_pct")} testid="arena-empty-pct" />
+        <Input label="Split (×)" type="number" value={f.empty_split} onChange={set("empty_split")} testid="arena-empty-split" />
+        <Input label="Max (×)" type="number" value={f.empty_max} onChange={set("empty_max")} testid="arena-empty-max" />
       </div>
-      <div className="grid sm:grid-cols-2 gap-3">
-        <Input label="No-active from (×)" type="number" value={f.na_min} onChange={set("na_min")} testid="arena-na-min" />
-        <Input label="No-active to (×)" type="number" value={f.na_max} onChange={set("na_max")} testid="arena-na-max" />
-      </div>
-      <Toggle on={f.no_active_enabled} onChange={(v) => setF({ ...f, no_active_enabled: v })} testid="arena-na-toggle" label="Use the no-active-player phase" />
     </Card>
   );
 };
+
+const ModeSwitch = ({ cfg, save }) => (
+  <div className="panel !rounded-2xl p-5 space-y-3" data-testid="arena-mode">
+    <div className="font-semibold text-white">Active logic (only one runs at a time)</div>
+    <div className="grid sm:grid-cols-2 gap-3">
+      {[["rng", "Logic 1 · Random multiplier distribution", "Round ends at the RNG endpoint. Payout caps are OFF (only available funds limit payouts)."],
+        ["cap", "Logic 2 · Payout cap", "Random distribution is OFF. Multiplier runs to max until paid + live stakes × multiplier reaches the budget, then crashes."]].map(([k, t, d]) => {
+        const on = cfg.active_logic === k;
+        return (
+          <button key={k} type="button" onClick={() => !on && save("mode", { active_logic: k })} data-testid={`arena-mode-${k}`}
+            className={`text-left rounded-2xl border p-4 transition-colors ${on ? "border-emerald-400/70 bg-emerald-500/10" : "border-white/10 hover:border-white/30"}`}>
+            <div className="flex items-center gap-2 font-semibold text-sm"><span className={`h-4 w-4 rounded-full border-2 ${on ? "border-emerald-400 bg-emerald-400" : "border-white/40"}`} />{t}
+              <span className={`ml-auto text-[10px] font-bold ${on ? "text-emerald-300" : "text-neutral-500"}`}>{on ? "ON" : "OFF"}</span></div>
+            <div className="mt-1.5 text-xs text-neutral-400">{d}</div>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
+const Off = ({ on, children }) => (
+  <div className={`relative ${on ? "" : "opacity-40 pointer-events-none select-none"}`}>
+    {!on && <div className="absolute right-4 top-4 z-10 rounded-full bg-black/80 border border-white/15 px-3 py-1 text-[11px] font-bold text-neutral-300">OFF</div>}
+    {children}
+  </div>
+);
 
 const Records = ({ d }) => (
   <>
     <Section title="Recent rounds & settlements" testid="arena-rounds">
       <DataTable testid="arena-rounds-table" rows={d.rounds} cols={[
-        ["Round", (r) => `#${r.number}${r.simulated ? " · SIM" : ""}`], ["Result", (r) => `${r.result.toFixed(2)}×`], ["Logic", (r) => r.logic],
+        ["Round", (r) => `#${r.number}${r.simulated ? " · SIM" : ""}`], ["Result", (r) => `${r.result.toFixed(2)}×`], ["Logic", (r) => (r.mode === "cap" ? "Logic 2 · cap" : r.logic)],
         ["Bets", (r) => r.bets_count], ["Stakes", (r) => inr(r.stakes)], ["Paid", (r) => inr(r.paid)], ["Budget", (r) => inr(r.budget)],
         ["Wallet open → close", (r) => `${inr(r.opening_balance)} → ${inr(r.closing_balance)}`],
-        ["Flags", (r) => [r.cap_hit && "CAP", r.na_applied && "NO-ACTIVE"].filter(Boolean).join(" ") || "—"],
+        ["Flags", (r) => (r.cap_hit ? "CAP" : "—")],
         ["Seed", (r) => <span className="mono text-[10px]" title={r.seed_hash}>{r.seed?.slice(0, 12)}…</span>], ["Ended", (r) => dt(r.crashed_at)],
       ].map(([label, render]) => ({ label, render }))} />
     </Section>
@@ -236,8 +257,9 @@ export default function GameArenaTab() {
       <Section title="Game Arena configuration (PULSE)" testid="arena-config">
         <div className="space-y-4" key={ver}>
           <General cfg={d.config} save={save} />
-          <Logic1 cfg={d.config} dist={d.distribution} save={save} />
-          <Logic2 cfg={d.config} save={save} />
+          <ModeSwitch cfg={d.config} save={save} />
+          <Off on={d.config.active_logic === "rng"}><Logic1 cfg={d.config} dist={d.distribution} save={save} /></Off>
+          <Off on={d.config.active_logic === "cap"}><Logic2 cfg={d.config} save={save} /></Off>
           <Phases cfg={d.config} save={save} />
         </div>
       </Section>

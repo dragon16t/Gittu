@@ -78,6 +78,7 @@ async def run_round(clients, label, collect_delays):
           f"collected {sum(b['status'] == 'collected' for b in bets)}/{len(bets)} ok_responses {ok}")
     check(rd["paid"] == paid_sum, f"[{label}] round.paid equals sum of payouts")
     check(rd["paid"] <= rd["budget"], f"[{label}] payouts never exceed the budget")
+    check(rd["result"] <= 3000, f"[{label}] multiplier never above 3000x")
     check(ok == sum(b["status"] == "collected" for b in bets), f"[{label}] no double collect (success responses == collected bets)")
     check(all(b["status"] in ("collected", "lost") for b in bets), f"[{label}] every bet settled")
     check(all(b["multiplier"] <= rd["result"] + 1e-9 for b in bets if b["status"] == "collected"), f"[{label}] no collect above the final multiplier")
@@ -96,6 +97,7 @@ async def main():
     after = (await adm.get(A + "/admin/pulse")).json()["wallet"]["balance"]
     check(r.status_code == 200 and after >= before + 200000, f"arena top-up ₹2,000 ({before} → {after})")
     clients = [await user_client(i) for i in range(N)]
+    await adm.put(A + "/admin/pulse/config/mode", json={"active_logic": "cap"})
 
     # Round A: tight fixed cap (₹1,500 for ₹1,200 live) -> cap point ≈1.25x, staggered + simultaneous collects
     await adm.put(A + "/admin/pulse/config/payout", json={"pct_enabled": True, "wallet_pct": 50, "cap_enabled": True, "fixed_cap": 150000, "carry_forward": False})
@@ -108,6 +110,12 @@ async def main():
     await adm.put(A + "/admin/pulse/config/payout", json={"pct_enabled": True, "wallet_pct": 10, "cap_enabled": False, "fixed_cap": 1000000, "carry_forward": True})
     await run_round(clients, "10% wallet", lambda i, slot: 0.8)
 
+    # Round D: Logic 1 only -> caps must be fully off (budget == available funds), round ends at RNG endpoint
+    await adm.put(A + "/admin/pulse/config/mode", json={"active_logic": "rng"})
+    rd = await run_round(clients, "logic 1 only", lambda i, slot: 0.5)
+    check(rd["mode"] == "rng" and rd["budget"] == rd["eligible"] and rd["allocation"] is None and rd["fixed_cap"] is None,
+          "[logic 1 only] payout caps fully off (budget = available funds)")
+    check(rd["result"] == rd["rng_endpoint"], "[logic 1 only] round ended at its RNG endpoint")
     for i, (_, uid) in enumerate(clients):
         ok, w, l = await ledger_ok(uid)
         check(ok, f"user ptcap{i} wallet {w} == ledger {l}")
