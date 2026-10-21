@@ -21,6 +21,7 @@ import tickets  # noqa: E402
 import presence  # noqa: E402
 import partners  # noqa: E402
 import payments  # noqa: E402
+import pulse  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 ORIGINS = [o.strip() for o in os.environ["CORS_ORIGINS"].split(",") if o.strip()]
@@ -42,6 +43,7 @@ api.include_router(promotions.router)
 api.include_router(tickets.router)
 api.include_router(presence.router)
 api.include_router(partners.router)
+api.include_router(pulse.router)
 app.include_router(api)
 
 
@@ -73,6 +75,14 @@ async def warm_qr_cache():
 async def create_indexes():
     await db.users.create_index("username", unique=True)
     await db.users.create_index("id", unique=True)
+    await db.users.create_index("email", unique=True, partialFilterExpression={"email": {"$type": "string"}})
+    await db.email_otps.create_index("email", unique=True)
+    await db.pulse_rounds.create_index("number", unique=True)
+    await db.pulse_rounds.create_index("id", unique=True)
+    await db.pulse_bets.create_index([("round_id", 1), ("user_id", 1), ("slot", 1)], unique=True)
+    await db.pulse_bets.create_index([("status", 1), ("collected_at", -1)])
+    await db.pulse_ledger.create_index("key", unique=True)
+    await db.pulse_cycles.create_index("cycle", unique=True)
     await db.sessions.create_index("id", unique=True)
     await db.sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.rate_events.create_index("at", expireAfterSeconds=86400)
@@ -156,6 +166,7 @@ async def startup():
     app.state.qr_warm = asyncio.create_task(warm_qr_cache())
     app.state.dispatch = asyncio.create_task(payments.withdrawal_dispatcher())
     app.state.audit = asyncio.create_task(audit_loop())
+    app.state.pulse = asyncio.create_task(pulse.pulse_loop())
 
 
 @app.on_event("shutdown")

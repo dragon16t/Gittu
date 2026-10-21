@@ -18,7 +18,15 @@ export const RecoveryCodeBox = ({ code, onDone }) => (
 
 export default function Register() {
   const [params] = useSearchParams();
-  const [f, setF] = useState({ username: "", password: "", confirm_password: "", referral_code: params.get("ref") || "", partner_code: (() => { const p = params.get("p"); if (p && !localStorage.getItem("oe_partner")) localStorage.setItem("oe_partner", p.toUpperCase()); return localStorage.getItem("oe_partner") || ""; })(), accept_terms: false, mobile: "", dob: "" });
+  const [f, setF] = useState({ username: "", password: "", confirm_password: "", referral_code: params.get("ref") || "", partner_code: (() => { const p = params.get("p"); if (p && !localStorage.getItem("oe_partner")) localStorage.setItem("oe_partner", p.toUpperCase()); return localStorage.getItem("oe_partner") || ""; })(), accept_terms: false, mobile: "", dob: "", email: "", email_otp: "" });
+  const [otpWait, setOtpWait] = useState(0);
+  const [sending, setSending] = useState(false);
+  useEffect(() => { if (otpWait <= 0) return; const t = setTimeout(() => setOtpWait(otpWait - 1), 1000); return () => clearTimeout(t); }, [otpWait]);
+  const sendOtp = async () => {
+    setSending(true);
+    try { await api.post("/auth/email-otp", { email: f.email }); toast.success("Code sent. Check your inbox (and spam)."); setOtpWait(60); }
+    catch (err) { toast.error(errMsg(err)); } finally { setSending(false); }
+  };
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState(null);
   const { setUser } = useSession();
@@ -65,6 +73,13 @@ export default function Register() {
           <Field label="Username" testid="register-username-input" value={f.username} onChange={set("username")} required />
           <Field label="Mobile number" type="tel" inputMode="numeric" maxLength={10} prefix="+91" testid="register-mobile-input" value={f.mobile}
             onChange={(e) => setF({ ...f, mobile: e.target.value.replace(/\D/g, "") })} required />
+          <div className="flex items-end gap-2">
+            <Field label="Email" type="email" testid="register-email-input" value={f.email} onChange={set("email")} required className="flex-1 min-w-0" />
+            <button type="button" onClick={sendOtp} disabled={sending || otpWait > 0 || !f.email} data-testid="register-send-otp-button"
+              className="silver-btn shrink-0 h-11 rounded-xl px-4 text-xs font-extrabold disabled:opacity-50">{sending ? "…" : otpWait > 0 ? `${otpWait}s` : "SEND OTP"}</button>
+          </div>
+          <Field label="Email code (6 digits)" inputMode="numeric" maxLength={6} testid="register-email-otp-input" value={f.email_otp}
+            onChange={(e) => setF({ ...f, email_otp: e.target.value.replace(/\D/g, "") })} required />
           <Field label="Date of birth" type="date" testid="register-dob-input" value={f.dob} onChange={set("dob")} required className="[&_input]:[color-scheme:dark]" />
           <Field label="Password" type="password" testid="register-password-input" value={f.password} onChange={set("password")} required />
           <Field label="Confirm password" type="password" testid="register-confirm-input" value={f.confirm_password}

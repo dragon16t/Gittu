@@ -126,3 +126,15 @@ Later additions:
 - P2: Optional player-facing "House round" notice for No-Win all-lose rounds
 - Mode 4 per-player view (June 2026): in an all-lose No-Win round, each player sees the opposite of their own side (ODD bettor sees EVEN, EVEN bettor sees ODD) in /game/state (round, last_round, recent[0]) and /game/history; hash/salt hidden for those rows. Verified via backend/tests/nowin_check.py.
 - Tap/lag fixes (June 2026): decorative glow divs were covering CLAIM buttons (now pointer-events-none); toasts covered the header (Back/Messages/Deposit) on mobile and blocked taps (toaster now pointer-events none, mobileOffset 112, 2.5s); game page no longer redirects taps to /login while the session is still loading; removed no-op SW fetch handler, backdrop blurs, blur-3xl glows, fixed body background; added :active tap feedback.
+
+## Update — PULSE Arena, Lobby, Email OTP (June 2026)
+- Email OTP signup: POST /api/auth/email-otp (Emergent managed email via Resend, backend/emailer.py; 60s resend wait, 10-min expiry, 5 tries, rate-limited); /auth/register requires email + email_otp; one email per account (unique partial index).
+- PULSE Arena (backend/pulse.py): server-authoritative crash/multiplier game. 7s betting → running (m = anchor_m·e^(k·t), k=0.1/s) → crashed (3s hold). Two independent bet slots per user per round. Endpoint picked before round via HMAC(seed) with sha256(seed) published; seed revealed after crash.
+  - Logic 1: one active distribution (low/medium/high/rare) with editable % below 2× and range for the rest; max multiplier cap.
+  - Logic 2: Circle 1 = 10/20/30% of eligible (arena wallet + round stakes) (+ optional carry-forward of unused); Circle 2 = fixed per-round cap. Budget = min(all enabled, eligible). Collect atomically reserves via conditional $inc on round.paid; if it would exceed the budget → round ends immediately (cap event recorded, admin-only).
+  - Empty rounds (no stakes) → practice round 50–1000× (fast curve, labelled). All bettors collected → no-active phase to pre-committed 300–400× endpoint.
+  - Arena wallet (pulse_wallet) = losing stakes − payouts + admin top-ups (reauth). pulse_ledger per round; reconciliation every 3 rounds (pulse_cycles).
+  - Uses the same ₹ wallet (ledger types pulse_stake / pulse_win / pulse_refund).
+  - Admin → "Game Arena" tab (GameArenaTab.jsx): live monitor, per-section saves (General, Logic 1, Logic 2, Phases), records, cap events, audit log.
+- Lobby homepage at "/" (Home.jsx), PULSE at /pulse, ODD/EVEN (Oddy Nacho) moved to /oddy-nacho, History has Oddy/Pulse tabs; bottom nav on Home & History. Presence ping now sends page → real per-game player counts. GET /api/lobby provides live wins (real data).
+- Note: custom domain betq.online must be added to CORS_ORIGINS before POSTs work there.

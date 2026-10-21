@@ -13,6 +13,9 @@ from core import (db, now, iso, uid, sha, hash_pw, verify_pw, validate_password,
                   clear_rate, create_session, current_user, current_admin, current_verifier, mfa_token,
                   read_mfa_token, audit, notify, alert, ensure_wallet, enc, dec, NOID)
 from promotions import new_referral_code, daily_for
+from emailer import send_email, otp_html, EMAIL_FROM_NAME
+
+EMAIL_RE = re.compile(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}")
 
 router = APIRouter()
 
@@ -26,6 +29,12 @@ class RegisterIn(BaseModel):
     accept_terms: bool = False
     mobile: str
     dob: str
+    email: str = ""
+    email_otp: str = ""
+
+
+class EmailOtpIn(BaseModel):
+    email: str
 
 
 class LoginIn(BaseModel):
@@ -108,6 +117,44 @@ async def password_login(body: LoginIn, request: Request, role: str) -> dict:
     return user
 
 
+def clean_email(raw: str) -> str:
+    email = raw.strip().lower()
+    if len(email) > 120 or not EMAIL_RE.fullmatch(email):
+        raise HTTPException(400, "Enter a valid email address")
+    return email
+
+
+@router.post("/auth/email-otp")
+async def send_email_otp(body: EmailOtpIn, request: Request):
+    email = clean_email(body.email)
+    ipkey = f"emailotp:{client_ip(request)}"
+    await check_rate(ipkey, 10, 60)
+    await check_rate(f"emailotp:{email}", 5, 60)
+    if await db.users.find_one({"email": email}, NOID):
+        raise HTTPException(400, "Email already registered")
+    prev = await db.email_otps.find_one({"email": email}, NOID)
+    if prev and (now() - datetime.fromisoformat(prev["sent_at"])).total_seconds() < 60:
+        raise HTTPException(429, "Please wait a minute before requesting another code")
+    code = f"{secrets.randbelow(1000000):06d}"
+    await send_email(to=email, subject=f"{EMAIL_FROM_NAME} verification code: {code}", html=otp_html(code))
+    await hit_rate(ipkey)
+    await hit_rate(f"emailotp:{email}")
+    await db.email_otps.update_one({"email": email}, {"$set": {
+        "code_hash": sha(f"{email}:{code}"), "sent_at": iso(), "expires_at": iso(now() + timedelta(minutes=10)), "attempts": 0}}, upsert=True)
+    return {"ok": True, "expires_in": 600}
+
+
+async def consume_email_otp(email: str, code: str):
+    rec = await db.email_otps.find_one({"email": email}, NOID)
+    if not rec or rec["expires_at"] < iso():
+        raise HTTPException(400, "Code expired. Please request a new one.")
+    if rec["attempts"] >= 5:
+        raise HTTPException(400, "Too many wrong codes. Please request a new one.")
+    if not secrets.compare_digest(rec["code_hash"], sha(f"{email}:{code.strip()}")):
+        await db.email_otps.update_one({"email": email}, {"$inc": {"attempts": 1}})
+        raise HTTPException(400, "Incorrect email code")
+
+
 # ---------- user / verifier auth ----------
 @router.post("/auth/register")
 async def register(body: RegisterIn, request: Request, response: Response):
@@ -136,6 +183,10 @@ async def register(body: RegisterIn, request: Request, response: Response):
     validate_password(body.password)
     if await db.users.find_one({"username": username}):
         raise HTTPException(400, "Username already taken")
+    email = clean_email(body.email)
+    if await db.users.find_one({"email": email}, NOID):
+        raise HTTPException(400, "Email already registered")
+    await consume_email_otp(email, body.email_otp)
     code = gen_recovery_code()
     referrer = None
     if body.referral_code.strip():
@@ -144,7 +195,7 @@ async def register(body: RegisterIn, request: Request, response: Response):
             raise HTTPException(400, "Invalid referral code")
     user = {"id": uid(), "username": username, "role": "user", "status": "active",
             "password_hash": hash_pw(body.password), "recovery_hash": sha(code), "created_at": iso(),
-            "referral_code": new_referral_code(), "terms_accepted_at": iso(), "terms_version": "2026-06", "mobile": mobile, "referred_by": referrer["id"] if referrer else None}
+            "referral_code": new_referral_code(), "terms_accepted_at": iso(), "terms_version": "2026-06", "mobile": mobile, "email": email, "email_verified_at": iso(), "referred_by": referrer["id"] if referrer else None}
     if body.partner_code.strip():
         partner = await db.partners.find_one({"partner_code": body.partner_code.strip().upper(), "status": "active"}, {"_id": 0, "id": 1, "user_id": 1})
         if partner:
@@ -153,7 +204,8 @@ async def register(body: RegisterIn, request: Request, response: Response):
     try:
         await db.users.insert_one(dict(user))
     except Exception:
-        raise HTTPException(400, "Username or mobile already registered")
+        raise HTTPException(400, "Username, mobile or email already registered")
+    await db.email_otps.delete_one({"email": email})
     await ensure_wallet(user["id"])
     await daily_for(user["id"])
     await create_session(response, user, request)

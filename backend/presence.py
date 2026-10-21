@@ -15,6 +15,7 @@ MAX_SIDS_PER_IP = 5
 
 class PingIn(BaseModel):
     sid: str
+    page: str = ""
 
 
 async def ping_user_id(request: Request):
@@ -41,8 +42,17 @@ async def ping(body: PingIn, request: Request):
         if await db.presence.count_documents({"ip": ip, "at": {"$gte": since}}) >= MAX_SIDS_PER_IP:
             return {"ok": False}
     await db.presence.update_one({"sid": body.sid}, {"$set": {
-        "sid": body.sid, "ip": ip, "user_id": await ping_user_id(request), "at": now()}}, upsert=True)
+        "sid": body.sid, "ip": ip, "user_id": await ping_user_id(request), "page": body.page[:20], "at": now()}}, upsert=True)
     return {"ok": True}
+
+
+async def page_counts() -> dict:
+    since = now() - timedelta(seconds=LIVE_SECONDS)
+    out = {"pulse": 0, "oddeven": 0}
+    async for r in db.presence.aggregate([{"$match": {"at": {"$gte": since}, "page": {"$in": ["pulse", "oddeven"]}}},
+                                          {"$group": {"_id": "$page", "n": {"$sum": 1}}}]):
+        out[r["_id"]] = r["n"]
+    return out
 
 
 async def live_counts() -> dict:

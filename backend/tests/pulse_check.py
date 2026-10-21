@@ -1,0 +1,22 @@
+import requests, pyotp, time, uuid
+A = open('/app/frontend/.env').read().split('REACT_APP_BACKEND_URL=')[1].split()[0] + '/api'
+T = pyotp.TOTP("JBSWY3DPEHPK3PXPODDEVENADMIN234A")
+adm = requests.Session()
+t = adm.post(A+"/admin/auth/login", json={"username": "admin", "password": "Admin@8CwWbJV7AhEE"}).json()
+adm.post(A+"/admin/auth/mfa", json={"mfa_token": t["mfa_token"], "code": T.now()})
+time.sleep(31)
+print("topup", adm.post(A+"/admin/pulse/topup", json={"amount": 500000, "note": "seed", "password": "Admin@8CwWbJV7AhEE", "code": T.now()}).text[:80])
+p1 = requests.Session(); p1.post(A+"/auth/login", json={"username": "player1", "password": "Player@123"})
+def st(): return p1.get(A+"/pulse/state").json()
+while st()["round"]["status"] != "betting": time.sleep(0.3)
+s = st(); rid = s["round"]["id"]; print("round", s["round"]["number"], "bal", s["balance"])
+for slot in (1, 2):
+    r = p1.post(A+"/pulse/bet", json={"slot": slot, "amount": 1000, "client_key": str(uuid.uuid4())}); print("bet", slot, r.status_code, r.text[:90])
+print("dup", p1.post(A+"/pulse/bet", json={"slot": 1, "amount": 1000, "client_key": str(uuid.uuid4())}).text[:80])
+while st()["round"]["status"] != "running": time.sleep(0.1)
+time.sleep(0.5)
+r = p1.post(A+"/pulse/collect", json={"round_id": rid, "slot": 1}); print("collect1", r.status_code, r.text[:160])
+print("collect1 again", p1.post(A+"/pulse/collect", json={"round_id": rid, "slot": 1}).text[:80])
+while st()["round"]["status"] == "running": time.sleep(0.2)
+s = st(); print("result", s["round"]["result"], [ (b["slot"], b["status"], b.get("payout")) for b in s["my_bets"]], "bal", s["balance"])
+a = adm.get(A+"/admin/pulse").json(); print("wallet", a["wallet"]["balance"], "rounds", [(x["number"], x["result"], x["stakes"], x["paid"], x.get("budget")) for x in a["rounds"][:3]])

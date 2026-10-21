@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, Dice5, Users, ShieldCheck, Landmark, ArrowLeftRight, FileBarChart, ScrollText, Lock, LogOut, Headset, Activity, Gift, Handshake } from "lucide-react";
+import { LayoutDashboard, Dice5, Users, ShieldCheck, Landmark, ArrowLeftRight, FileBarChart, ScrollText, Lock, LogOut, Headset, Activity, Gift, Handshake, Orbit } from "lucide-react";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { BrandName } from "@/lib/brand";
@@ -8,6 +8,7 @@ import DashboardTab from "./DashboardTab";
 import BonusTab from "./BonusTab";
 import FranchiseeTab from "./FranchiseeTab";
 import GameTab from "./GameTab";
+import GameArenaTab from "./GameArenaTab";
 import UsersTab from "./UsersTab";
 import VerifiersTab from "./VerifiersTab";
 import AccountsTab from "./AccountsTab";
@@ -19,7 +20,7 @@ import TicketsTab from "./TicketsTab";
 import WorkloadTab from "./WorkloadTab";
 
 const TABS = [
-  ["dashboard", "Dashboard", LayoutDashboard, DashboardTab], ["game", "Game Configuration", Dice5, GameTab],
+  ["dashboard", "Dashboard", LayoutDashboard, DashboardTab], ["game", "Game Configuration", Dice5, GameTab], ["arena", "Game Arena", Orbit, GameArenaTab],
   ["users", "User Management", Users, UsersTab], ["verifiers", "Payment Verifiers", ShieldCheck, VerifiersTab],
   ["accounts", "Payment Accounts", Landmark, AccountsTab], ["payments", "Deposits & Withdrawals", ArrowLeftRight, PaymentsTab],
   ["tickets", "Support Tickets", Headset, TicketsTab],

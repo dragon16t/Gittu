@@ -184,3 +184,5 @@ button:active:not(:disabled), a:active { opacity: 0.85; }
 .admin-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 6px; }
 
 [data-sonner-toaster], [data-sonner-toast] { pointer-events: none !important; }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

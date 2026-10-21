@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Mail, Gift, Wallet as WalletIcon, Headset, Trophy, Lock } from "lucide-react";
+import { Mail, Gift, Wallet as WalletIcon, Headset, Trophy, Lock, Home as HomeIcon } from "lucide-react";
 import { useSession } from "@/lib/session";
 import { api, errMsg, inr, inr0, newKey, toPaise } from "@/lib/api";
 import { TopBar, CountdownRing, SideCircle, StakePicker, ResultStage, RecentResults } from "@/components/game/GameParts";
@@ -175,6 +175,7 @@ export default function Game() {
             <span className="gold-text">Refer & Earn {inr0(referBonus)}</span>
           </Link>
           <div className="flex items-center gap-1.5">
+            <IconLink to="/" icon={HomeIcon} label="Home" testid="nav-home" />
             <IconLink to="/messages" icon={Mail} label="Messages" testid="nav-messages" badge={coupons} />
             <IconLink to="/support" icon={Headset} label="Support" testid="nav-support" />
             <IconLink to="/wallet" icon={WalletIcon} label="Wallet" testid="nav-wallet" />
