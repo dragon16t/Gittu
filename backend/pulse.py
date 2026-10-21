@@ -29,7 +29,7 @@ DEFAULT = {
     "logics": {"low": {"below_pct": 80, "lo": 2.0, "hi": 3.0}, "medium": {"below_pct": 80, "lo": 3.0, "hi": 5.0},
                "high": {"below_pct": 90, "lo": 5.0, "hi": 10.0}, "rare": {"below_pct": 90, "lo": 10.0, "hi": 100.0}},
     "pct_enabled": True, "wallet_pct": 30, "cap_enabled": True, "fixed_cap": 1000000, "carry_forward": True,
-    "sim_min": 50.0, "sim_max": 1000.0, "no_active_enabled": True, "na_min": 300.0, "na_max": 400.0,
+    "empty_below_pct": 80, "empty_split": 3.0, "empty_max": 20.0, "no_active_enabled": True, "na_min": 300.0, "na_max": 400.0,
 }
 
 
@@ -69,7 +69,8 @@ def endpoints(seed: str, cfg: dict) -> dict:
     else:
         main = _logu(_u(seed, "value"), min(lg["lo"], cap), min(lg["hi"], cap))
     return {"main": floor2(max(1.0, min(main, cap))),
-            "sim": floor2(_logu(_u(seed, "sim"), cfg["sim_min"], cfg["sim_max"])),
+            "sim": floor2(1 + _u(seed, "sim") * (cfg["empty_split"] - 1) if _u(seed, "sim_tier") * 100 < cfg["empty_below_pct"]
+                          else _logu(_u(seed, "sim"), cfg["empty_split"], cfg["empty_max"])),
             "na": floor2(cfg["na_min"] + _u(seed, "na") * (cfg["na_max"] - cfg["na_min"]))}
 
 
@@ -80,6 +81,22 @@ def mult_at(r: dict, t) -> float:
 
 def time_to(r_anchor_m: float, k: float, target: float) -> float:
     return math.log(max(target, r_anchor_m) / r_anchor_m) / k
+
+
+def effective_end(r: dict):
+    """Round ends at the RNG endpoint, or earlier where paid + live stakes x multiplier would exceed the budget."""
+    rng = r.get("rng_endpoint", r.get("endpoint"))
+    live = r["stakes"] - r.get("collected_stakes", 0)
+    if r.get("simulated") or live <= 0:
+        return rng, False
+    m_cap = max(1.0, floor2((r["budget"] - r["paid"]) / live))
+    return (m_cap, True) if m_cap < rng else (rng, False)
+
+
+def end_fields(r: dict) -> dict:
+    end, limited = effective_end(r)
+    at = parse(r["anchor_at"]) + timedelta(seconds=time_to(r["anchor_m"], r["k"], end))
+    return {"endpoint": end, "cap_limited": limited, "crash_at": iso(at)}
 
 
 # ---------- engine ----------
@@ -108,7 +125,7 @@ async def start_round(r: dict, cfg: dict):
     limits = [eligible]
     alloc = carry = None
     if cfg["pct_enabled"]:
-        alloc = eligible * cfg["wallet_pct"] // 100
+        alloc = w["balance"] * cfg["wallet_pct"] // 100
         if cfg["carry_forward"]:
             prev = await db.pulse_rounds.find_one({"status": "crashed", "simulated": False}, P, sort=[("number", -1)])
             carry = max(0, (prev or {}).get("unused", 0))
@@ -117,13 +134,14 @@ async def start_round(r: dict, cfg: dict):
         limits.append(cfg["fixed_cap"])
     budget = max(0, min(limits))
     endpoint = res["planned"]["sim"] if simulated else res["planned"]["main"]
-    k = math.log(endpoint) / FAST_SECONDS if simulated else K_NORMAL
     t = now()
+    doc = {"status": "running", "simulated": simulated, "anchor_m": 1.0, "anchor_at": iso(t), "k": K_NORMAL, "rng_endpoint": endpoint,
+           "budget": budget, "stakes": res["stakes"], "paid": 0, "collected_stakes": 0}
+    doc.update(end_fields(doc))
     await db.pulse_rounds.update_one({"id": r["id"], "status": "starting"}, {"$set": {
-        "status": "running", "simulated": simulated, "anchor_m": 1.0, "anchor_at": iso(t), "k": k, "endpoint": endpoint,
-        "crash_at": iso(t + timedelta(seconds=time_to(1.0, k, endpoint))), "started_at": iso(t),
+        **doc, "started_at": iso(t),
         "opening_balance": w["balance"], "eligible": eligible, "allocation": alloc, "carry_in": carry,
-        "fixed_cap": cfg["fixed_cap"] if cfg["cap_enabled"] else None, "budget": budget}})
+        "fixed_cap": cfg["fixed_cap"] if cfg["cap_enabled"] else None}})
 
 
 async def no_active_phase(r: dict, cfg: dict):
@@ -132,7 +150,7 @@ async def no_active_phase(r: dict, cfg: dict):
     target = max(r["planned"]["na"], m + 0.01)
     k = math.log(target / m) / FAST_SECONDS
     await db.pulse_rounds.update_one({"id": r["id"], "status": "running", "na_applied": {"$ne": True}}, {"$set": {
-        "na_applied": True, "anchor_m": m, "anchor_at": iso(t), "k": k, "endpoint": target,
+        "na_applied": True, "anchor_m": m, "anchor_at": iso(t), "k": k, "endpoint": target, "rng_endpoint": target, "cap_limited": False,
         "crash_at": iso(t + timedelta(seconds=FAST_SECONDS))}})
 
 
@@ -142,6 +160,11 @@ async def crash(r: dict):
         "status": "crashed", "result": r["endpoint"], "crashed_at": iso(t)}}, return_document=ReturnDocument.AFTER, projection=P)
     if not res:
         return
+    if res.get("cap_limited"):
+        await db.pulse_rounds.update_one({"id": r["id"]}, {"$set": {"cap_hit": True}})
+        await db.pulse_cap_events.insert_one({"id": uid(), "round_id": r["id"], "round_number": res["number"], "multiplier": res["endpoint"],
+                                              "rng_endpoint": res["rng_endpoint"], "live_stakes": res["stakes"] - res.get("collected_stakes", 0),
+                                              "budget": res["budget"], "paid": res["paid"], "at": iso(t)})
     await db.pulse_bets.update_many({"round_id": r["id"], "status": "active"},
                                     {"$set": {"status": "lost", "payout": 0, "settled_at": iso(t)}})
     net = res["stakes"] - res["paid"]
@@ -211,7 +234,7 @@ def mask_name(u: str) -> str:
 def public_pulse(r: dict) -> dict:
     if not r:
         return None
-    out = {k: r.get(k) for k in ("id", "number", "status", "opens_at", "closes_at", "seed_hash", "simulated",
+    out = {k: r.get(k) for k in ("id", "number", "status", "opens_at", "closes_at", "seed_hash",
                                  "anchor_m", "anchor_at", "k", "started_at", "crashed_at")}
     if r["status"] == "crashed":
         out.update(result=r["result"], seed=r["seed"])
@@ -223,10 +246,10 @@ _CACHE = {"at": None, "body": None}
 
 async def shared_pulse():
     t = now()
-    if _CACHE["at"] and (t - _CACHE["at"]).total_seconds() < 0.15:
+    if _CACHE["at"] and (t - _CACHE["at"]).total_seconds() < 0.1:
         return _CACHE["body"]
     cur = await db.pulse_rounds.find_one({}, P, sort=[("number", -1)])
-    recent = await db.pulse_rounds.find({"status": "crashed"}, {"_id": 0, "number": 1, "result": 1, "simulated": 1}).sort("number", -1).to_list(20)
+    recent = await db.pulse_rounds.find({"status": "crashed"}, {"_id": 0, "number": 1, "result": 1}).sort("number", -1).to_list(20)
     wins = await db.pulse_bets.find({"status": "collected"}, {"_id": 0, "username": 1, "payout": 1, "multiplier": 1, "collected_at": 1}).sort("collected_at", -1).to_list(12)
     cfg = await pcfg()
     from presence import page_counts
@@ -318,19 +341,19 @@ async def pulse_collect(body: CollectIn, user=Depends(current_user)):
     await db.pulse_collects.insert_one({"id": uid(), "round_id": r["id"], "bet_id": bet["id"], "user_id": user["id"],
                                         "multiplier": m, "gross": gross, "at": iso(t)})
     ok = await db.pulse_rounds.update_one({"id": r["id"], "status": "running", "crash_at": {"$gt": iso(t)},
-                                           "paid": {"$lte": r["budget"] - gross}}, {"$inc": {"paid": gross, "collected": 1}})
+                                           "paid": {"$lte": r["budget"] - gross}}, {"$inc": {"paid": gross, "collected": 1, "collected_stakes": bet["stake"]}})
     if not ok.modified_count:
-        cut = await db.pulse_rounds.update_one({"id": r["id"], "status": "running", "crash_at": {"$gt": iso(t)}}, {"$set": {
-            "crash_at": iso(t), "endpoint": m, "cap_hit": True, "cap_hit_at": iso(t)}})
-        if cut.modified_count:
-            await db.pulse_cap_events.insert_one({"id": uid(), "round_id": r["id"], "round_number": r["number"], "multiplier": m,
-                                                  "requested": gross, "budget": r["budget"], "paid": r["paid"], "at": iso(t)})
+        await db.pulse_rounds.update_one({"id": r["id"], "status": "running", "crash_at": {"$gt": iso(t)}}, {"$set": {
+            "crash_at": iso(t), "endpoint": m, "cap_limited": True}})
         raise HTTPException(400, "Round ended")
     upd = await db.pulse_bets.find_one_and_update({"id": bet["id"], "status": "active"}, {"$set": {
         "status": "collected", "multiplier": m, "payout": gross, "collected_at": iso(t)}}, return_document=ReturnDocument.AFTER, projection=P)
     if not upd:
-        await db.pulse_rounds.update_one({"id": r["id"]}, {"$inc": {"paid": -gross, "collected": -1}})
+        await db.pulse_rounds.update_one({"id": r["id"]}, {"$inc": {"paid": -gross, "collected": -1, "collected_stakes": -bet["stake"]}})
         raise HTTPException(400, "Round ended")
+    fresh = await db.pulse_rounds.find_one({"id": r["id"], "status": "running"}, P)
+    if fresh and not fresh.get("na_applied"):
+        await db.pulse_rounds.update_one({"id": r["id"], "status": "running", "na_applied": {"$ne": True}}, {"$set": end_fields(fresh)})
     await ledger_credit(user["id"], gross, "pulse_win", f"pulse_win:{bet['id']}", {"round_id": r["id"], "bet_id": bet["id"], "multiplier": m})
     w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0, "balance": 1})
     upd.pop("_id", None)
@@ -339,7 +362,7 @@ async def pulse_collect(body: CollectIn, user=Depends(current_user)):
 
 @router.get("/pulse/history")
 async def pulse_history():
-    return await db.pulse_rounds.find({"status": "crashed"}, {"_id": 0, "number": 1, "result": 1, "simulated": 1, "seed": 1,
+    return await db.pulse_rounds.find({"status": "crashed"}, {"_id": 0, "number": 1, "result": 1, "seed": 1,
                                                               "seed_hash": 1, "crashed_at": 1}).sort("number", -1).to_list(100)
 
 
@@ -365,6 +388,8 @@ async def admin_pulse(admin=Depends(current_admin)):
                 "paid": cur["paid"], "remaining": (budget - cur["paid"]) if budget is not None else None,
                 "allocation": cur.get("allocation"), "carry_in": cur.get("carry_in"), "fixed_cap": cur.get("fixed_cap"),
                 "eligible": cur.get("eligible"), "cap_hit": cur.get("cap_hit", False), "na_applied": cur.get("na_applied", False),
+                "live_stakes": cur["stakes"] - cur.get("collected_stakes", 0), "cap_limited": cur.get("cap_limited", False),
+                "cap_point": cur.get("endpoint") if cur.get("cap_limited") and cur["status"] == "running" else None,
                 "logic": cur.get("logic")}
     rounds = await db.pulse_rounds.find({"status": "crashed"}, {"_id": 0, "number": 1, "result": 1, "simulated": 1, "stakes": 1, "paid": 1,
                                                                 "budget": 1, "cap_hit": 1, "na_applied": 1, "logic": 1, "bets_count": 1,
@@ -384,7 +409,7 @@ SECTIONS = {
     "general": {"enabled": bool, "betting_seconds": int, "min_bet": int, "max_bet": int, "max_multiplier": float},
     "logic": {"logic": str, "logics": dict},
     "payout": {"pct_enabled": bool, "wallet_pct": int, "cap_enabled": bool, "fixed_cap": int, "carry_forward": bool},
-    "phases": {"sim_min": float, "sim_max": float, "no_active_enabled": bool, "na_min": float, "na_max": float},
+    "phases": {"empty_below_pct": int, "empty_split": float, "empty_max": float, "no_active_enabled": bool, "na_min": float, "na_max": float},
 }
 
 
@@ -395,8 +420,8 @@ def validate(section: str, upd: dict, cfg: dict):
             raise HTTPException(400, "Betting countdown must be 3–30 seconds")
         if not 100 <= c["min_bet"] <= c["max_bet"]:
             raise HTTPException(400, "Minimum bet must be ≥ ₹1 and ≤ maximum bet")
-        if not 2 <= c["max_multiplier"] <= 10000:
-            raise HTTPException(400, "Maximum multiplier must be 2×–10,000×")
+        if not 2 <= c["max_multiplier"] <= 3000:
+            raise HTTPException(400, "Maximum multiplier must be 2×–3000×")
     elif section == "logic":
         if c["logic"] not in LOGICS:
             raise HTTPException(400, "Choose one of: low, medium, high, rare")
@@ -411,13 +436,13 @@ def validate(section: str, upd: dict, cfg: dict):
             c["logics"][name] = lg
         upd["logics"] = c["logics"]
     elif section == "payout":
-        if c["wallet_pct"] not in (10, 20, 30):
-            raise HTTPException(400, "Arena wallet allocation must be 10%, 20% or 30%")
+        if c["wallet_pct"] not in (10, 20, 30, 50):
+            raise HTTPException(400, "Arena wallet allocation must be 10%, 20%, 30% or 50%")
         if c["fixed_cap"] < 0:
             raise HTTPException(400, "Fixed payout cap cannot be negative")
     elif section == "phases":
-        if not 1.01 <= c["sim_min"] <= c["sim_max"] <= 100000 or not 1.01 <= c["na_min"] <= c["na_max"] <= 100000:
-            raise HTTPException(400, "Ranges must be from ≤ to, and above 1.01×")
+        if not 0 <= c["empty_below_pct"] <= 100 or not 1.01 <= c["empty_split"] <= c["empty_max"] <= 3000 or not 1.01 <= c["na_min"] <= c["na_max"] <= 3000:
+            raise HTTPException(400, "Ranges must be from ≤ to, between 1.01× and 3000×, percentage 0–100")
 
 
 @router.put("/admin/pulse/config/{section}")

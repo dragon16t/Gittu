@@ -21,62 +21,67 @@ export const PulseTicker = memo(function PulseTicker({ winners }) {
   );
 });
 
-export const Arena = ({ m, status, frac, simulated }) => {
+export const MAX_ARC = 3000;
+const HALF = MAX_ARC / 2;
+export const arcFrac = (m) => (m <= 1 ? 0 : m <= HALF ? 0.5 * Math.log(m) / Math.log(HALF) : Math.min(1, 0.5 + 0.5 * (m - HALF) / HALF));
+
+export const Arena = ({ m, status }) => {
   const crashed = status === "crashed";
+  const frac = status === "running" || crashed ? arcFrac(m) : 0;
+  const a = frac * 2 * Math.PI;
+  const dot = { x: 200 + 190 * Math.sin(a), y: 200 - 190 * Math.cos(a) };
+  const txt = `${m.toFixed(2)}x`;
   return (
-    <div className="relative mx-auto aspect-square w-[min(100%,calc(100dvh-530px))] min-w-[230px]" data-testid="pulse-arena">
+    <div className="relative mx-auto aspect-square w-[min(100%,calc(100dvh-530px))] min-w-[230px] [container-type:inline-size]" data-testid="pulse-arena">
       <svg viewBox="0 0 400 400" className="absolute inset-0 h-full w-full overflow-visible">
         <defs>
           <filter id="pglow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
           <radialGradient id="pbg"><stop offset="0.55" stopColor="#00F58A" stopOpacity="0.10" /><stop offset="1" stopColor="#00F58A" stopOpacity="0" /></radialGradient>
         </defs>
         <circle cx="200" cy="200" r="200" fill="url(#pbg)" />
-        <circle cx="200" cy="200" r="190" fill="none" stroke="#ffffff22" strokeWidth="9" />
-        <circle cx="200" cy="200" r="190" fill="none" stroke={crashed ? "#ff3b4e" : "#00F58A"} strokeWidth="9" strokeLinecap="round"
-          strokeDasharray={C} strokeDashoffset={C * (1 - frac)} transform="rotate(-90 200 200)" filter="url(#pglow)"
-          style={{ transition: "stroke-dashoffset 120ms linear" }} data-testid="pulse-arc" />
+        <circle cx="200" cy="200" r="190" fill="none" stroke="#ff3b4e" strokeOpacity="0.28" strokeWidth="9" data-testid="pulse-track" />
+        <circle cx="200" cy="200" r="190" fill="none" stroke="#00F58A" strokeWidth="9" strokeLinecap="round"
+          strokeDasharray={C} strokeDashoffset={C * (1 - frac)} transform="rotate(-90 200 200)" filter="url(#pglow)" data-testid="pulse-arc" />
         <circle cx="200" cy="200" r="160" fill="none" stroke="#ffffff10" strokeWidth="1.5" />
         <circle cx="200" cy="200" r="138" fill="none" stroke="#ffffffb0" strokeWidth="1.6" strokeDasharray="7 7" />
         <circle cx="200" cy="200" r="116" fill="none" stroke="#ffffff12" strokeWidth="16" />
-        {[0, 45, 90, 135].map((a) => (
-          <line key={a} x1="200" y1="28" x2="200" y2="372" stroke="#ffffff" strokeOpacity={a % 90 ? 0.16 : 0.3} strokeWidth="1.2" transform={`rotate(${a} 200 200)`} />
+        {[0, 45, 90, 135].map((d) => (
+          <line key={d} x1="200" y1="28" x2="200" y2="372" stroke="#ffffff" strokeOpacity={d % 90 ? 0.16 : 0.3} strokeWidth="1.2" transform={`rotate(${d} 200 200)`} />
         ))}
-        <circle cx="200" cy="10" r="11" fill={crashed ? "#ff3b4e" : "#7dffc4"} filter="url(#pglow)" />
-        <circle cx="200" cy="10" r="6" fill="#eafff4" />
+        <circle cx="200" cy="10" r="5" fill="#00F58A" opacity="0.5" />
+        <g data-testid="pulse-pointer"><circle cx={dot.x} cy={dot.y} r="11" fill="#7dffc4" filter="url(#pglow)" /><circle cx={dot.x} cy={dot.y} r="6" fill="#eafff4" /></g>
       </svg>
-      <img src={ART.sphere} alt="" className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[42%] rounded-full mix-blend-screen ${status === "running" ? "animate-[pulse_1.6s_ease-in-out_infinite]" : ""} ${crashed ? "hue-rotate-[230deg] saturate-150" : ""}`} />
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <div className={`font-black tracking-tight text-[clamp(44px,15vw,72px)] leading-none drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${crashed ? "text-[#ff5a68]" : "text-white"}`} data-testid="pulse-multiplier">
-          {m.toFixed(2)}x
-        </div>
-        {crashed && <div className="mt-1 text-[12px] font-bold tracking-[0.25em] text-[#ff5a68]" data-testid="pulse-crashed-label">ROUND ENDED</div>}
-        {simulated && status !== "betting" && <div className="mt-1 rounded-full bg-black/70 px-2.5 py-0.5 text-[10px] font-bold tracking-widest text-neutral-300" data-testid="pulse-sim-label">PRACTICE ROUND · NO STAKES</div>}
+      <img src={ART.sphere} alt="" className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[42%] rounded-full mix-blend-screen ${status === "running" ? "animate-[pulse_1.6s_ease-in-out_infinite]" : ""}`} />
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="font-black tracking-tight leading-none text-white whitespace-nowrap drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]"
+          style={{ fontSize: `${Math.min(20, 66 / (0.6 * txt.length))}cqw` }} data-testid="pulse-multiplier">{txt}</div>
       </div>
     </div>
   );
 };
 
-export const TimerBar = ({ status, secs, total }) => {
-  const frac = status === "betting" ? Math.max(0, Math.min(1, secs / total)) : 0;
-  const label = status === "betting" ? "Place your bets" : status === "running" ? "Round in progress" : "Next round starting";
+export const TimerBar = ({ status, secs, total, totalWin }) => {
+  const betting = status === "betting";
+  const frac = betting ? Math.max(0, Math.min(1, secs / total)) : 0;
   return (
-    <div className="relative mx-auto -mt-3 w-[88%] rounded-[22px] border border-white/10 bg-[#0b0e0e] px-4 py-2 text-center" data-testid="pulse-timer">
-      <div className="text-[14px] text-neutral-200">{label}</div>
-      <div className="flex items-center gap-3">
-        <span className="h-5 w-5 rounded-full border border-neutral-400 text-neutral-400 text-[9px] flex items-center justify-center">◷</span>
-        <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#00F58A] ml-auto" style={{ width: `${frac * 100}%` }} /></div>
-        <div className="mono font-bold text-[26px] leading-none text-[#00F58A] drop-shadow-[0_0_10px_rgba(0,245,138,0.6)]" data-testid="pulse-countdown">
-          00:{String(status === "betting" ? Math.ceil(secs) : 0).padStart(2, "0")}
+    <div className="relative mx-auto -mt-3 w-[82%] max-w-[330px] rounded-[20px] border border-white/10 bg-[#0b0e0e] px-4 py-2 text-center" data-testid="pulse-timer">
+      <div className="text-[13px] text-neutral-300 leading-none" data-testid="pulse-timer-title">{betting ? "Place your bets" : "Total Win"}</div>
+      {betting ? (
+        <div className="mt-1.5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden flex justify-end"><div className="h-full bg-[#00F58A]" style={{ width: `${frac * 100}%` }} /></div>
+          <div className="mono font-bold text-[26px] leading-none text-[#00F58A] drop-shadow-[0_0_10px_rgba(0,245,138,0.6)]" data-testid="pulse-countdown">00:{String(Math.ceil(secs)).padStart(2, "0")}</div>
+          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#00F58A]" style={{ width: `${frac * 100}%` }} /></div>
         </div>
-        <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#00F58A]" style={{ width: `${frac * 100}%` }} /></div>
-      </div>
+      ) : (
+        <div className="mt-1.5 font-extrabold text-[26px] leading-none text-[#00F58A] drop-shadow-[0_0_10px_rgba(0,245,138,0.6)]" data-testid="pulse-total-win">{inr(totalWin)}</div>
+      )}
     </div>
   );
 };
 
 const CHIPS = [1000, 5000, 10000, 50000];
 
-export const BetCard = ({ slot, amount, setAmount, bet, status, m, busy, onAction }) => {
+export const BetCard = ({ slot, amount, setAmount, bet, status, m, busy, flash, onAction }) => {
   const live = bet && bet.status === "active";
   const locked = !!bet || status !== "betting";
   let label, tone = "silver", disabled = busy;
@@ -117,7 +122,7 @@ export const BetCard = ({ slot, amount, setAmount, bet, status, m, busy, onActio
       </div>
       <button type="button" disabled={disabled} onClick={onAction} data-testid={`bet-${slot}-action-button`}
         className={`w-full h-12 rounded-full flex items-center justify-center gap-2 font-extrabold text-[clamp(12px,3.6vw,16px)] tracking-wide transition-[background-color,box-shadow,transform] active:scale-[0.98] ${toneCls}`}>
-        {tone === "silver" && <WalletCards size={19} />}{busy ? "…" : label}
+        {tone === "silver" && !flash && <WalletCards size={19} />}{flash || (busy ? "…" : label)}
       </button>
     </div>
   );

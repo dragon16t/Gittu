@@ -1,0 +1,21 @@
+import requests, pyotp, time, uuid
+A = open('/app/frontend/.env').read().split('REACT_APP_BACKEND_URL=')[1].split()[0] + '/api'
+adm = requests.Session()
+t = adm.post(A+"/admin/auth/login", json={"username": "admin", "password": "Admin@8CwWbJV7AhEE"}).json()
+adm.post(A+"/admin/auth/mfa", json={"mfa_token": t["mfa_token"], "code": pyotp.TOTP("JBSWY3DPEHPK3PXPODDEVENADMIN234A").now()})
+print("cfg", adm.put(A+"/admin/pulse/config/payout", json={"pct_enabled": True, "wallet_pct": 10, "cap_enabled": True, "fixed_cap": 30000, "carry_forward": False}).status_code)
+p1 = requests.Session(); p1.post(A+"/auth/login", json={"username": "player1", "password": "Player@123"})
+st = lambda: p1.get(A+"/pulse/state").json()
+while st()["round"]["status"] != "betting": time.sleep(0.2)
+time.sleep(0.5)
+rid = st()["round"]["id"]
+for slot in (1, 2): print("bet", slot, p1.post(A+"/pulse/bet", json={"slot": slot, "amount": 20000, "client_key": str(uuid.uuid4())}).status_code)
+while st()["round"]["status"] not in ("running", "crashed"): time.sleep(0.1)
+l = adm.get(A+"/admin/pulse").json()["live"]; print("wallet", adm.get(A+"/admin/pulse").json()["wallet"]["balance"], "budget", l["budget"], "live", l["live_stakes"], "cap_point", l["cap_point"])
+time.sleep(1.2)
+print("collect1", p1.post(A+"/pulse/collect", json={"round_id": rid, "slot": 1}).text[:120])
+l = adm.get(A+"/admin/pulse").json()["live"]; print("after collect: paid", l["paid"], "live", l["live_stakes"], "cap_point", l["cap_point"], l["status"])
+while st()["round"]["status"] == "running": time.sleep(0.1)
+s = st(); print("result", s["round"]["result"], [(b["slot"], b["status"], b.get("payout")) for b in s["my_bets"]])
+a = adm.get(A+"/admin/pulse").json(); print("cap_event", a["cap_events"][0] if a["cap_events"] else None)
+print("restore", adm.put(A+"/admin/pulse/config/payout", json={"pct_enabled": True, "wallet_pct": 30, "cap_enabled": True, "fixed_cap": 1000000, "carry_forward": True}).status_code)

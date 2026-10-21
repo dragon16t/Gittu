@@ -46,7 +46,7 @@ const PulseRows = ({ rows, mine }) => (
       {rows.map((r) => (
         <div key={r.number} className="panel !rounded-2xl px-4 py-3">
           <div className="flex items-center justify-between">
-            <span className="font-semibold">Round #{r.number}{r.simulated && <span className="ml-2 text-[10px] text-neutral-500">PRACTICE</span>}</span>
+            <span className="font-semibold">Round #{r.number}</span>
             <span className={`font-extrabold ${r.result >= 100 ? "text-[#ff6b77]" : "text-[#00F58A]"}`}>{r.result.toFixed(2)}x</span>
           </div>
           <div className="text-[11px] text-neutral-500">{dt(r.crashed_at)}</div>

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { Users } from "lucide-react";
-import { api, errMsg, inr, newKey } from "@/lib/api";
+import { api, errMsg, newKey } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { useMusic } from "@/components/game/hooks";
 import { playBetSound, playWinSound } from "@/lib/sfx";
@@ -26,6 +25,8 @@ export default function Pulse() {
   const [now, setNow] = useState(Date.now());
   const [amounts, setAmounts] = useState({ 1: 10000, 2: 20000 });
   const [busy, setBusy] = useState({});
+  const [flash, setFlash] = useState({});
+  const showFlash = (slot, text) => { setFlash((f) => ({ ...f, [slot]: text })); setTimeout(() => setFlash((f) => ({ ...f, [slot]: null })), 1500); };
   const offset = useRef(0);
   const ref = useRef(null);
   const [music, toggleMusic] = useMusic();
@@ -35,10 +36,6 @@ export default function Pulse() {
       const t0 = Date.now();
       const { data } = await api.get("/pulse/state");
       offset.current = new Date(data.server_time).getTime() - (t0 + Date.now()) / 2;
-      const prev = ref.current;
-      if (prev?.round?.id === data.round?.id && prev.round.status === "running" && data.round.status === "crashed") {
-        data.my_bets.filter((b) => b.status === "lost").forEach((b) => toast.error(`Bet ${b.slot} lost at ${data.round.result.toFixed(2)}x`));
-      }
       ref.current = data;
       setState(data);
     } catch { /* retry on next poll */ }
@@ -48,7 +45,7 @@ export default function Pulse() {
     let alive = true, timer;
     const loop = async () => {
       await load();
-      if (alive) timer = setTimeout(loop, ref.current?.round?.status === "running" ? 250 : 600);
+      if (alive) timer = setTimeout(loop, ref.current?.round?.status === "running" ? 150 : 500);
     };
     loop();
     const tick = setInterval(() => setNow(Date.now()), 50);
@@ -59,8 +56,8 @@ export default function Pulse() {
   const t = now + offset.current;
   const m = multAt(r, t);
   const secs = r?.status === "betting" ? Math.max(0, (new Date(r.closes_at).getTime() - t) / 1000) : 0;
-  const frac = r?.status === "running" || r?.status === "crashed" ? Math.min(1, 1 - 1 / m) : r?.status === "betting" ? Math.max(0, secs / (state.config.betting_seconds || 7)) * 0.25 : 0;
   const bets = state?.my_bets || NONE;
+  const totalWin = bets.reduce((t, b) => t + (b.status === "collected" ? b.payout : b.status === "active" && r?.status === "running" ? Math.floor(b.stake * Math.round(m * 100) / 100) : 0), 0);
 
   const act = async (slot) => {
     if (!user) return nav("/login");
@@ -68,17 +65,16 @@ export default function Pulse() {
     setBusy((b) => ({ ...b, [slot]: true }));
     try {
       if (!bet && r?.status === "betting") {
-        const { data } = await api.post("/pulse/bet", { slot, amount: amounts[slot], client_key: newKey() });
+        await api.post("/pulse/bet", { slot, amount: amounts[slot], client_key: newKey() });
         playBetSound();
-        toast.success(`Bet ${slot} placed · ${inr(data.bet.stake)}`);
       } else if (bet?.status === "active" && r?.status === "running") {
-        const { data } = await api.post("/pulse/collect", { round_id: r.id, slot });
+        await api.post("/pulse/collect", { round_id: r.id, slot });
         playWinSound();
-        toast.success(`Collected ${inr(data.bet.payout)} at ${data.bet.multiplier.toFixed(2)}x`);
       }
       await load();
     } catch (e) {
-      toast.error(errMsg(e));
+      const msg = errMsg(e).toLowerCase();
+      if (!bet) showFlash(slot, msg.includes("balance") ? "LOW BALANCE" : msg.includes("between") ? "CHECK AMOUNT" : "BETTING CLOSED");
       load();
     } finally {
       setBusy((b) => ({ ...b, [slot]: false }));
@@ -103,13 +99,13 @@ export default function Pulse() {
       </div>
       <main className="flex-1 px-4 flex flex-col justify-evenly gap-2 pt-1">
         <div>
-          <Arena m={m} status={r?.status} frac={frac} simulated={r?.simulated} />
-          <TimerBar status={r?.status} secs={secs} total={state?.config.betting_seconds || 7} />
+          <Arena m={m} status={r?.status} />
+          <TimerBar status={r?.status} secs={secs} total={state?.config.betting_seconds || 7} totalWin={totalWin} />
         </div>
         <div className="grid grid-cols-2 gap-2.5">
           {[1, 2].map((slot) => (
             <BetCard key={slot} slot={slot} amount={amounts[slot]} setAmount={(v) => setAmounts((a) => ({ ...a, [slot]: v }))}
-              bet={bets.find((b) => b.slot === slot)} status={r?.status} m={m} busy={!!busy[slot]} onAction={() => act(slot)} />
+              bet={bets.find((b) => b.slot === slot)} status={r?.status} m={m} busy={!!busy[slot]} flash={flash[slot]} onAction={() => act(slot)} />
           ))}
         </div>
         <RecentRounds rounds={state?.recent || NONE} />

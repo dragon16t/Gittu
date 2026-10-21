@@ -47,6 +47,8 @@ const Live = ({ d, onTopup }) => {
         <Stat label="Paid payouts" value={inr(l.paid)} testid="arena-paid" />
         <Stat label="Remaining budget" value={l.remaining == null ? "—" : inr(l.remaining)} testid="arena-remaining" tone={l.cap_hit ? "text-red-400" : ""} />
         <Stat label="Collect requests" value={`${l.collect_requests ?? 0} · ${l.collected ?? 0} paid`} testid="arena-collects" />
+        <Stat label="Live stakes" value={inr(l.live_stakes)} testid="arena-live-stakes" />
+        <Stat label="Cap crash point" value={l.cap_point ? `${l.cap_point.toFixed(2)}×` : "—"} testid="arena-cap-point" tone={l.cap_point ? "text-amber-300" : ""} />
       </div>
       <div className="text-xs text-neutral-400 space-x-3" data-testid="arena-live-notes">
         <span>Eligible: {l.eligible == null ? "—" : inr(l.eligible)}</span>
@@ -115,13 +117,13 @@ const Logic2 = ({ cfg, save }) => {
   const [f, setF] = useState({ pct_enabled: cfg.pct_enabled, wallet_pct: cfg.wallet_pct, cap_enabled: cfg.cap_enabled, fixed_cap: cfg.fixed_cap / 100, carry_forward: cfg.carry_forward });
   return (
     <Card title="Logic 2 · Payout controls" testid="arena-logic2"
-      sub="Effective budget = the lowest of: eligible funds (arena wallet + round stakes), Circle 1 allocation (+ carry-forward), Circle 2 cap. Remaining = budget − paid. If a collect would exceed it, the round ends."
+      sub="Budget = lowest of: Circle 1 (% of arena wallet, + carry-forward), Circle 2 fixed cap, available funds. The round crashes automatically at the multiplier where paid wins + live stakes × multiplier would exceed the budget. Players never see these rules."
       onSave={() => save("payout", { ...f, fixed_cap: toPaise(f.fixed_cap) })}>
       <div className="grid md:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-white/10 p-4 space-y-3" data-testid="arena-circle1">
           <Toggle on={f.pct_enabled} onChange={(v) => setF({ ...f, pct_enabled: v })} testid="arena-circle1-toggle" label="Circle 1 · Arena wallet percentage" />
           <div className="flex gap-2">
-            {[10, 20, 30].map((p) => (
+            {[10, 20, 30, 50].map((p) => (
               <button key={p} type="button" onClick={() => setF({ ...f, wallet_pct: p })} data-testid={`arena-pct-${p}`}
                 className={`h-10 w-16 rounded-full text-sm font-bold border ${f.wallet_pct === p ? "silver-btn text-black border-transparent" : "border-white/15 text-neutral-300"}`}>{p}%</button>
             ))}
@@ -138,15 +140,18 @@ const Logic2 = ({ cfg, save }) => {
 };
 
 const Phases = ({ cfg, save }) => {
-  const [f, setF] = useState({ sim_min: cfg.sim_min, sim_max: cfg.sim_max, no_active_enabled: cfg.no_active_enabled, na_min: cfg.na_min, na_max: cfg.na_max });
+  const [f, setF] = useState({ empty_below_pct: cfg.empty_below_pct, empty_split: cfg.empty_split, empty_max: cfg.empty_max, no_active_enabled: cfg.no_active_enabled, na_min: cfg.na_min, na_max: cfg.na_max });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
     <Card title="Empty & no-active-player rounds" testid="arena-phases"
-      sub="No stakes → labelled practice round to a random endpoint in the empty-round range. Everyone collected → round continues to a pre-committed endpoint in the no-active range."
-      onSave={() => save("phases", { ...f, sim_min: +f.sim_min, sim_max: +f.sim_max, na_min: +f.na_min, na_max: +f.na_max })}>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Input label="Empty round from (×)" type="number" value={f.sim_min} onChange={set("sim_min")} testid="arena-sim-min" />
-        <Input label="Empty round to (×)" type="number" value={f.sim_max} onChange={set("sim_max")} testid="arena-sim-max" />
+      sub={`No stakes → random end: ${f.empty_below_pct}% under ${f.empty_split}×, rest up to ${f.empty_max}×. Everyone collected → continues to a pre-committed endpoint in the no-active range.`}
+      onSave={() => save("phases", { ...f, empty_below_pct: +f.empty_below_pct, empty_split: +f.empty_split, empty_max: +f.empty_max, na_min: +f.na_min, na_max: +f.na_max })}>
+      <div className="grid sm:grid-cols-3 gap-3">
+        <Input label="Empty round: % under split" type="number" value={f.empty_below_pct} onChange={set("empty_below_pct")} testid="arena-empty-pct" />
+        <Input label="Empty round: split (×)" type="number" value={f.empty_split} onChange={set("empty_split")} testid="arena-empty-split" />
+        <Input label="Empty round: max (×)" type="number" value={f.empty_max} onChange={set("empty_max")} testid="arena-empty-max" />
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
         <Input label="No-active from (×)" type="number" value={f.na_min} onChange={set("na_min")} testid="arena-na-min" />
         <Input label="No-active to (×)" type="number" value={f.na_max} onChange={set("na_max")} testid="arena-na-max" />
       </div>
@@ -175,7 +180,8 @@ const Records = ({ d }) => (
     </Section>
     <Section title="Payout cap events" testid="arena-cap-events">
       <DataTable testid="arena-cap-table" minW={520} empty="No cap events" rows={d.cap_events} cols={[
-        ["Round", (c) => `#${c.round_number}`], ["At", (c) => `${c.multiplier.toFixed(2)}×`], ["Requested", (c) => inr(c.requested)],
+        ["Round", (c) => `#${c.round_number}`], ["Crashed at", (c) => `${c.multiplier.toFixed(2)}×`], ["RNG end", (c) => (c.rng_endpoint ? `${c.rng_endpoint.toFixed(2)}×` : "—")],
+        ["Live stakes", (c) => inr(c.live_stakes ?? c.requested)],
         ["Budget", (c) => inr(c.budget)], ["Paid before", (c) => inr(c.paid)], ["Time", (c) => dt(c.at)],
       ].map(([label, render]) => ({ label, render }))} />
     </Section>
