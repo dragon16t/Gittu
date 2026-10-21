@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Minus, Plus, Trophy, ChevronRight, WalletCards } from "lucide-react";
 import { Link } from "react-router-dom";
-import { inr, inr0 } from "@/lib/api";
+import { inr } from "@/lib/api";
 import { ART } from "@/lib/assets";
 
 const C = 2 * Math.PI * 190;
@@ -86,10 +86,10 @@ export const BetCard = ({ slot, amount, setAmount, bet, status, m, busy, flash, 
   const live = bet && bet.status === "active";
   const locked = !!bet || status !== "betting";
   let label, tone = "silver", disabled = busy;
-  if (bet?.status === "collected") { label = `COLLECTED ${inr0(bet.payout)}`; tone = "done"; disabled = true; }
+  if (bet?.status === "collected") { label = `COLLECTED ${inr(bet.payout)}`; tone = "done"; disabled = true; }
   else if (bet?.status === "lost") { label = "ROUND LOST"; tone = "lost"; disabled = true; }
   else if (live && status === "running") { label = `COLLECT ${inr(Math.floor(bet.stake * Math.round(m * 100) / 100))}`; tone = "green"; }
-  else if (live) { label = `BET PLACED ${inr0(bet.stake)}`; tone = "placed"; disabled = true; }
+  else if (live) { label = `BET PLACED ${inr(bet.stake)}`; tone = "placed"; disabled = true; }
   else if (status === "betting") label = "PLACE BET";
   else { label = "NEXT ROUND"; tone = "wait"; disabled = true; }
   const toneCls = {

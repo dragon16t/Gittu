@@ -99,6 +99,17 @@ def end_fields(r: dict) -> dict:
     return {"endpoint": end, "cap_limited": limited, "crash_at": iso(at)}
 
 
+async def refresh_end(round_id: str):
+    for _ in range(8):
+        fresh = await db.pulse_rounds.find_one({"id": round_id, "status": "running"}, P)
+        if not fresh or fresh.get("na_applied"):
+            return
+        res = await db.pulse_rounds.update_one({"id": round_id, "status": "running", "paid": fresh["paid"],
+                                                "collected_stakes": fresh.get("collected_stakes", 0)}, {"$set": end_fields(fresh)})
+        if res.matched_count:
+            return
+
+
 # ---------- engine ----------
 async def new_round(cfg: dict, last: dict):
     seed = secrets.token_hex(32)
@@ -128,13 +139,16 @@ async def start_round(r: dict, cfg: dict):
         alloc = w["balance"] * cfg["wallet_pct"] // 100
         if cfg["carry_forward"]:
             prev = await db.pulse_rounds.find_one({"status": "crashed", "simulated": False}, P, sort=[("number", -1)])
-            carry = max(0, (prev or {}).get("unused", 0))
+            carry = max(0, min((prev or {}).get("unused", 0), (prev or {}).get("allocation") or 0))
         limits.append(alloc + (carry or 0))
     if cfg["cap_enabled"]:
         limits.append(cfg["fixed_cap"])
     budget = max(0, min(limits))
     endpoint = res["planned"]["sim"] if simulated else res["planned"]["main"]
     t = now()
+    closes = parse(res["closes_at"])
+    if (t - closes).total_seconds() < 0.5:
+        t = closes
     doc = {"status": "running", "simulated": simulated, "anchor_m": 1.0, "anchor_at": iso(t), "k": K_NORMAL, "rng_endpoint": endpoint,
            "budget": budget, "stakes": res["stakes"], "paid": 0, "collected_stakes": 0}
     doc.update(end_fields(doc))
@@ -156,7 +170,7 @@ async def no_active_phase(r: dict, cfg: dict):
 
 async def crash(r: dict):
     t = now()
-    res = await db.pulse_rounds.find_one_and_update({"id": r["id"], "status": "running"}, {"$set": {
+    res = await db.pulse_rounds.find_one_and_update({"id": r["id"], "status": "running", "crash_at": r["crash_at"], "endpoint": r["endpoint"]}, {"$set": {
         "status": "crashed", "result": r["endpoint"], "crashed_at": iso(t)}}, return_document=ReturnDocument.AFTER, projection=P)
     if not res:
         return
@@ -255,7 +269,7 @@ async def shared_pulse():
     from presence import page_counts
     body = {"round": public_pulse(cur), "recent": recent, "players": (await page_counts())["pulse"],
             "winners": [{"name": mask_name(w["username"]), "payout": w["payout"], "multiplier": w["multiplier"]} for w in wins],
-            "config": {"min_bet": cfg["min_bet"], "max_bet": cfg["max_bet"], "betting_seconds": cfg["betting_seconds"], "enabled": cfg["enabled"]}}
+            "config": {"min_bet": cfg["min_bet"], "max_bet": cfg["max_bet"], "betting_seconds": cfg["betting_seconds"], "enabled": cfg["enabled"], "k": K_NORMAL}}
     _CACHE.update(at=t, body=body)
     return body
 
@@ -334,6 +348,12 @@ async def pulse_collect(body: CollectIn, user=Depends(current_user)):
     if not bet or bet["status"] != "active":
         raise HTTPException(400, "No active bet to collect")
     r = await db.pulse_rounds.find_one({"id": body.round_id}, P)
+    for _ in range(10):
+        if not r or r["status"] not in ("betting", "starting") or t < parse(r["closes_at"]):
+            break
+        await asyncio.sleep(0.05)
+        r = await db.pulse_rounds.find_one({"id": body.round_id}, P)
+        t = now()
     if not r or r["status"] != "running" or t >= parse(r["crash_at"]):
         raise HTTPException(400, "Round ended")
     m = mult_at(r, t)
@@ -351,9 +371,7 @@ async def pulse_collect(body: CollectIn, user=Depends(current_user)):
     if not upd:
         await db.pulse_rounds.update_one({"id": r["id"]}, {"$inc": {"paid": -gross, "collected": -1, "collected_stakes": -bet["stake"]}})
         raise HTTPException(400, "Round ended")
-    fresh = await db.pulse_rounds.find_one({"id": r["id"], "status": "running"}, P)
-    if fresh and not fresh.get("na_applied"):
-        await db.pulse_rounds.update_one({"id": r["id"], "status": "running", "na_applied": {"$ne": True}}, {"$set": end_fields(fresh)})
+    await refresh_end(r["id"])
     await ledger_credit(user["id"], gross, "pulse_win", f"pulse_win:{bet['id']}", {"round_id": r["id"], "bet_id": bet["id"], "multiplier": m})
     w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0, "balance": 1})
     upd.pop("_id", None)

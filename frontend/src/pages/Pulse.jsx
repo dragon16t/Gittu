@@ -37,7 +37,7 @@ export default function Pulse() {
   const load = useCallback(async () => {
     try {
       const t0 = Date.now();
-      const { data } = await api.get("/pulse/state");
+      const { data } = await api.get("/pulse/state", { timeout: 4000 });
       offset.current = new Date(data.server_time).getTime() - (t0 + Date.now()) / 2;
       const prev = ref.current;
       if (prev?.round?.id && prev.round.id === data.round?.id) {
@@ -55,15 +55,17 @@ export default function Pulse() {
     let alive = true, timer;
     const loop = async () => {
       await load();
-      if (alive) timer = setTimeout(loop, ref.current?.round?.status === "running" ? 150 : 500);
+      if (alive) timer = setTimeout(loop, 150);
     };
     loop();
     const tick = setInterval(() => setNow(Date.now()), 50);
     return () => { alive = false; clearTimeout(timer); clearInterval(tick); };
   }, [load]);
 
-  const r = state?.round;
   const t = now + offset.current;
+  const raw = state?.round;
+  const r = raw && (raw.status === "betting" || raw.status === "starting") && t >= new Date(raw.closes_at).getTime()
+    ? { ...raw, status: "running", anchor_m: 1, anchor_at: raw.closes_at, k: state.config.k || 0.1 } : raw;
   const m = multAt(r, t);
   const secs = r?.status === "betting" ? Math.max(0, (new Date(r.closes_at).getTime() - t) / 1000) : 0;
   const bets = state?.my_bets || NONE;
@@ -75,14 +77,16 @@ export default function Pulse() {
     setBusy((b) => ({ ...b, [slot]: true }));
     try {
       if (!bet && r?.status === "betting") {
-        await api.post("/pulse/bet", { slot, amount: amounts[slot], client_key: newKey() });
+        const { data } = await api.post("/pulse/bet", { slot, amount: amounts[slot], client_key: newKey() });
         playBetSound();
+        setState((st) => ({ ...st, balance: data.balance, my_bets: [...st.my_bets.filter((b) => b.slot !== slot), data.bet] }));
       } else if (bet?.status === "active" && r?.status === "running") {
         const { data } = await api.post("/pulse/collect", { round_id: r.id, slot });
         playWinSound();
         fly(slot, `+${inr(data.bet.payout)}`, true);
+        setState((st) => ({ ...st, balance: data.balance, my_bets: st.my_bets.map((b) => (b.slot === slot ? { ...b, ...data.bet } : b)) }));
       }
-      await load();
+      load();
     } catch (e) {
       const msg = errMsg(e).toLowerCase();
       if (!bet) showFlash(slot, msg.includes("balance") ? "LOW BALANCE" : msg.includes("between") ? "CHECK AMOUNT" : "BETTING CLOSED");
