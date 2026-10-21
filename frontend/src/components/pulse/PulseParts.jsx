@@ -52,9 +52,10 @@ export const Arena = ({ m, status }) => {
         <g data-testid="pulse-pointer"><circle cx={dot.x} cy={dot.y} r="11" fill="#7dffc4" filter="url(#pglow)" /><circle cx={dot.x} cy={dot.y} r="6" fill="#eafff4" /></g>
       </svg>
       <img src={ART.sphere} alt="" className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[42%] rounded-full mix-blend-screen ${status === "running" ? "animate-[pulse_1.6s_ease-in-out_infinite]" : ""}`} />
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
         <div className="font-black tracking-tight leading-none text-white whitespace-nowrap drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]"
           style={{ fontSize: `${Math.min(20, 66 / (0.6 * txt.length))}cqw` }} data-testid="pulse-multiplier">{txt}</div>
+        {crashed && <div className="mt-[2cqw] rounded-full bg-black/70 px-3 py-1 text-[4.2cqw] font-extrabold tracking-[0.2em] text-[#ff3b4e]" data-testid="pulse-round-ends">ROUND ENDS</div>}
       </div>
     </div>
   );

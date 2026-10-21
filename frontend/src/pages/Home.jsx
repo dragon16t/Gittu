@@ -44,9 +44,9 @@ const GameCard = ({ to, art, accent, glow, players, title, tagline, wins, testid
       <CardTicker wins={wins} accent={accent} testid={`${testid}-wins`} />
       {title}
       <div className="text-[9px] tracking-[0.18em] font-semibold whitespace-nowrap" style={{ color: accent }}>{tagline}</div>
-      <div className="mt-auto mx-2 h-10 rounded-full flex items-center justify-center gap-1.5 text-black font-extrabold text-[13.5px] whitespace-nowrap"
+      <div className="mt-auto mx-3 h-9 rounded-full flex items-center justify-center gap-1.5 text-black font-extrabold text-[12.5px] tracking-wide whitespace-nowrap"
         style={{ background: `linear-gradient(180deg, #fff6, transparent 60%), ${accent}`, boxShadow: `0 0 12px ${glow}` }} data-testid={`${testid}-play`}>
-        <Gamepad2 size={17} /> PLAY NOW <ChevronRight size={15} />
+        <Gamepad2 size={15} /> PLAY NOW <ChevronRight size={14} />
       </div>
     </div>
   </Link>
@@ -71,11 +71,11 @@ export default function Home() {
       <section className="relative h-[clamp(130px,19dvh,220px)] overflow-hidden" data-testid="home-hero">
         <img src={ART.hero} alt="" className="absolute right-[-18%] top-0 h-full w-[100%] object-cover object-right [mask-image:linear-gradient(to_right,transparent,black_35%)]" />
         <div className="relative px-5 pt-3">
-          <h1 className="italic font-black leading-[0.95] text-[clamp(26px,8vw,44px)] tracking-tight">
-            <span className="block silver-text">PLAY.</span><span className="block silver-text">WATCH.</span>
-            <span className="block text-[#00F58A] drop-shadow-[0_0_18px_rgba(0,245,138,0.5)]">WIN BIG.</span>
+          <h1 className="italic font-black leading-[0.95] text-[clamp(24px,7vw,38px)] tracking-tight">
+            <span className="block silver-text">PLAY</span><span className="block silver-text">WATCH</span>
+            <span className="block text-[#00F58A] drop-shadow-[0_0_18px_rgba(0,245,138,0.5)]">WIN BIG</span>
           </h1>
-          <p className="mt-2 text-[9.5px] tracking-[0.3em] text-neutral-400 max-w-[220px]">REAL GAMES. REAL PLAYERS. REAL WINS.</p>
+          <p className="mt-2 text-[9.5px] font-semibold tracking-[0.14em] text-neutral-300 whitespace-nowrap">REAL GAMES. REAL PLAYERS. REAL WINS.</p>
         </div>
       </section>
       <div className="px-4 space-y-3">
