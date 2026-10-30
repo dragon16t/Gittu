@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, errMsg, inr, dt, toPaise } from "@/lib/api";
 import { Section, DataTable, Input, Btn, Modal } from "./ui";
+import { BandEditor, bandTotal, toBands } from "./ArenaBands";
 
 const LOGIC_INFO = {
   low: "Low multiplier", medium: "Medium multiplier", high: "High multiplier", rare: "Rare high multiplier",
@@ -81,30 +82,25 @@ const General = ({ cfg, save }) => {
 const Logic1 = ({ cfg, dist, save }) => {
   const [logic, setLogic] = useState(cfg.logic);
   const [lg, setLg] = useState(cfg.logics);
-  const set = (name, k) => (e) => setLg({ ...lg, [name]: { ...lg[name], [k]: e.target.value } });
   const obs = dist.rounds ? Math.round((dist.below_2x / dist.rounds) * 100) : null;
+  const submit = () => {
+    const bad = Object.keys(LOGIC_INFO).find((n) => Math.abs(bandTotal(lg[n].bands) - 100) > 0.01);
+    if (bad) return toast.error(`${LOGIC_INFO[bad]}: percentages must add up to exactly 100%`);
+    save("logic", { logic, logics: Object.fromEntries(Object.keys(LOGIC_INFO).map((n) => [n, { bands: toBands(lg[n].bands) }])) });
+  };
   return (
     <Card title="Logic 1 · Random multiplier distribution" testid="arena-logic1"
-      sub="Cumulative shares: % below 1.2× ≤ % below 1.5× ≤ % below 2×. Values inside each band are uniformly random from a fresh 256-bit cryptographic seed per round (sha256 commitment published first), so players and bots cannot predict results."
-      onSave={() => save("logic", { logic, logics: lg })}>
+      sub="Each logic is a table of ranges whose shares add up to exactly 100%. Every round first picks a range by its % (e.g. 5% of rounds crash at 1.00×), then a random value inside it, from a fresh 256-bit cryptographic seed (sha256 commitment published first). Set From = To = 1 for an instant 1.00× crash."
+      onSave={submit}>
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {Object.keys(LOGIC_INFO).map((name) => {
-          const on = logic === name, v = lg[name];
+          const on = logic === name;
           return (
             <div key={name} className={`rounded-2xl border p-4 space-y-3 transition-colors ${on ? "border-emerald-400/70 bg-emerald-500/5" : "border-white/10"}`} data-testid={`arena-logic-${name}`}>
               <button type="button" onClick={() => setLogic(name)} className="flex items-center gap-2 text-sm font-semibold" data-testid={`arena-logic-${name}-select`}>
                 <span className={`h-4 w-4 rounded-full border-2 ${on ? "border-emerald-400 bg-emerald-400" : "border-white/40"}`} />{LOGIC_INFO[name]}{on && <span className="text-[10px] text-emerald-300">ACTIVE</span>}
               </button>
-              <div className="text-xs text-neutral-400">{v.below_12_pct ?? 15}% below 1.2× · {v.below_15_pct ?? 40}% below 1.5× · {v.below_pct}% below 2× · {100 - v.below_pct}% between {v.lo}× and {v.hi}×</div>
-              <div className="grid grid-cols-2 gap-2">
-                <Input label="% below 1.2×" type="number" value={v.below_12_pct ?? 15} onChange={set(name, "below_12_pct")} testid={`arena-logic-${name}-p12`} />
-                <Input label="% below 1.5×" type="number" value={v.below_15_pct ?? 40} onChange={set(name, "below_15_pct")} testid={`arena-logic-${name}-p15`} />
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <Input label="% below 2×" type="number" value={v.below_pct} onChange={set(name, "below_pct")} testid={`arena-logic-${name}-pct`} />
-                <Input label="Rest from ×" type="number" value={v.lo} onChange={set(name, "lo")} testid={`arena-logic-${name}-lo`} />
-                <Input label="Rest to ×" type="number" value={v.hi} onChange={set(name, "hi")} testid={`arena-logic-${name}-hi`} />
-              </div>
+              <BandEditor bands={lg[name].bands} onChange={(b) => setLg({ ...lg, [name]: { bands: b } })} testid={`arena-logic-${name}-bands`} />
             </div>
           );
         })}
@@ -143,17 +139,16 @@ const Logic2 = ({ cfg, save }) => {
 };
 
 const Phases = ({ cfg, save }) => {
-  const [f, setF] = useState({ empty_below_pct: cfg.empty_below_pct, empty_split: cfg.empty_split, empty_max: cfg.empty_max });
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const [bands, setBands] = useState(cfg.empty_bands);
+  const submit = () => {
+    if (Math.abs(bandTotal(bands) - 100) > 0.01) return toast.error("Empty rounds: percentages must add up to exactly 100%");
+    save("phases", { empty_bands: toBands(bands) });
+  };
   return (
     <Card title="Empty rounds (no stakes)" testid="arena-phases"
-      sub={`No stakes → random end: ${f.empty_below_pct}% under ${f.empty_split}×, rest up to ${f.empty_max}×. In Logic 2, when every player has collected, the round also ends by this rule.`}
-      onSave={() => save("phases", { empty_below_pct: +f.empty_below_pct, empty_split: +f.empty_split, empty_max: +f.empty_max })}>
-      <div className="grid sm:grid-cols-3 gap-3">
-        <Input label="% under split" type="number" value={f.empty_below_pct} onChange={set("empty_below_pct")} testid="arena-empty-pct" />
-        <Input label="Split (×)" type="number" value={f.empty_split} onChange={set("empty_split")} testid="arena-empty-split" />
-        <Input label="Max (×)" type="number" value={f.empty_max} onChange={set("empty_max")} testid="arena-empty-max" />
-      </div>
+      sub="Rounds without stakes follow this table (shares total 100%). In Logic 2, when every player has collected, the round also ends by this table."
+      onSave={submit}>
+      <div className="max-w-md"><BandEditor bands={bands} onChange={setBands} testid="arena-empty-bands" /></div>
     </Card>
   );
 };

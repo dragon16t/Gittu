@@ -42,6 +42,9 @@ def wd_view(w: dict, badges: dict = None) -> dict:
 async def require_kyc(w: dict):
     if not await kyc_verified(w["user_id"]):
         raise HTTPException(400, "User is not Aadhaar verified. Do not process; reject or wait for KYC approval.")
+    acc = (w.get("destination") or {}).get("account_id")
+    if not acc or not await db.payout_accounts.find_one({"id": acc, "user_id": w["user_id"], "status": "approved"}, {"_id": 1}):
+        raise HTTPException(400, "Destination is not an admin-approved KYC account. Reject this withdrawal.")
 
 
 @router.get("/dashboard")

@@ -25,10 +25,14 @@ LOGICS = ("low", "medium", "high", "rare")
 DEFAULT = {
     "id": "pulse", "enabled": True, "betting_seconds": 7, "min_bet": 1000, "max_bet": 1000000, "max_multiplier": 3000.0,
     "active_logic": "rng", "logic": "low",
-    "logics": {"low": {"below_pct": 80, "lo": 2.0, "hi": 3.0}, "medium": {"below_pct": 80, "lo": 3.0, "hi": 5.0},
-               "high": {"below_pct": 90, "lo": 5.0, "hi": 10.0}, "rare": {"below_pct": 90, "lo": 10.0, "hi": 100.0}},
+    "logics": {
+        "low": {"bands": [[1.0, 1.0, 5], [1.01, 1.3, 20], [1.3, 1.7, 20], [1.7, 2.5, 25], [2.5, 5.0, 18], [5.0, 20.0, 9], [20.0, 100.0, 3]]},
+        "medium": {"bands": [[1.0, 1.0, 4], [1.01, 1.5, 18], [1.5, 2.0, 20], [2.0, 3.0, 22], [3.0, 6.0, 20], [6.0, 25.0, 12], [25.0, 200.0, 4]]},
+        "high": {"bands": [[1.0, 1.0, 4], [1.01, 1.5, 14], [1.5, 2.5, 20], [2.5, 5.0, 24], [5.0, 10.0, 20], [10.0, 50.0, 14], [50.0, 500.0, 4]]},
+        "rare": {"bands": [[1.0, 1.0, 3], [1.01, 1.5, 12], [1.5, 3.0, 20], [3.0, 10.0, 25], [10.0, 50.0, 22], [50.0, 500.0, 13], [500.0, 3000.0, 5]]},
+    },
     "pct_enabled": True, "wallet_pct": 30, "cap_enabled": True, "fixed_cap": 1000000, "carry_forward": True,
-    "empty_below_pct": 80, "empty_split": 3.0, "empty_max": 20.0,
+    "empty_bands": [[1.0, 1.0, 5], [1.01, 1.5, 18], [1.5, 2.0, 20], [2.0, 3.0, 22], [3.0, 6.0, 18], [6.0, 20.0, 12], [20.0, 100.0, 5]],
 }
 
 
@@ -38,7 +42,9 @@ async def pcfg() -> dict:
         await db.pulse_config.update_one({"id": "pulse"}, {"$setOnInsert": DEFAULT}, upsert=True)
         c = dict(DEFAULT)
     c.pop("_id", None)
-    return {**DEFAULT, **c, "logics": {**DEFAULT["logics"], **c.get("logics", {})}}
+    stored = c.get("logics", {})
+    return {**DEFAULT, **c, "logics": {n: {**DEFAULT["logics"][n], **{k: v for k, v in stored.get(n, {}).items() if k == "bands"}}
+                                       for n in LOGICS}}
 
 
 async def arena_wallet() -> dict:
@@ -60,23 +66,23 @@ def floor2(m: float) -> float:
     return math.floor(m * 100 + 1e-9) / 100
 
 
+def pick_band(bands: list, tier: float, v: float, cap: float) -> float:
+    """Weighted band pick (shares total 100%), then a log-uniform value inside the band."""
+    acc = 0.0
+    lo, hi = bands[-1][0], bands[-1][1]
+    for b_lo, b_hi, pct in bands:
+        acc += pct
+        if tier < acc:
+            lo, hi = b_lo, b_hi
+            break
+    return floor2(max(1.0, min(_logu(v, min(lo, cap), min(hi, cap)), cap)))
+
+
 def endpoints(seed: str, cfg: dict) -> dict:
-    lg = cfg["logics"][cfg["logic"]]
     cap = cfg["max_multiplier"]
-    tier, v = _u(seed, "tier") * 100, _u(seed, "value")
-    p12, p15 = lg.get("below_12_pct", 15), lg.get("below_15_pct", 40)
-    if tier < min(p12, lg["below_pct"]):
-        main = 1 + v * 0.2
-    elif tier < min(p15, lg["below_pct"]):
-        main = 1.2 + v * 0.3
-    elif tier < lg["below_pct"]:
-        main = 1.5 + v * 0.5
-    else:
-        main = _logu(_u(seed, "value"), min(lg["lo"], cap), min(lg["hi"], cap))
-    return {"main": floor2(max(1.0, min(main, cap))),
-            "sim": floor2(1 + _u(seed, "sim") * (cfg["empty_split"] - 1) if _u(seed, "sim_tier") * 100 < cfg["empty_below_pct"]
-                          else _logu(_u(seed, "sim"), cfg["empty_split"], cfg["empty_max"])),
-            }
+    bands = cfg["logics"][cfg["logic"]]["bands"]
+    return {"main": pick_band(bands, _u(seed, "tier") * 100, _u(seed, "value"), cap),
+            "sim": pick_band(cfg["empty_bands"], _u(seed, "sim_tier") * 100, _u(seed, "sim"), cap)}
 
 
 def mult_at(r: dict, t) -> float:
@@ -433,8 +439,26 @@ SECTIONS = {
     "mode": {"active_logic": str},
     "logic": {"logic": str, "logics": dict},
     "payout": {"pct_enabled": bool, "wallet_pct": int, "cap_enabled": bool, "fixed_cap": int, "carry_forward": bool},
-    "phases": {"empty_below_pct": int, "empty_split": float, "empty_max": float},
+    "phases": {"empty_bands": list},
 }
+
+
+def clean_bands(raw, label: str) -> list:
+    if not isinstance(raw, list) or not 1 <= len(raw) <= 15:
+        raise HTTPException(400, f"{label}: add between 1 and 15 ranges")
+    out = []
+    for b in raw:
+        try:
+            lo, hi, pct = (float(b["from"]), float(b["to"]), float(b["pct"])) if isinstance(b, dict) else map(float, b)
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(400, f"{label}: every range needs from ×, to × and %")
+        if not (1.0 <= lo <= hi <= 3000 and 0 <= pct <= 100):
+            raise HTTPException(400, f"{label}: ranges must be 1× ≤ from ≤ to ≤ 3000× and % between 0 and 100")
+        out.append([round(lo, 2), round(hi, 2), round(pct, 2)])
+    total = sum(b[2] for b in out)
+    if abs(total - 100) > 0.01:
+        raise HTTPException(400, f"{label}: range percentages must add up to exactly 100% (now {total:g}%)")
+    return sorted(out, key=lambda b: (b[0], b[1]))
 
 
 def validate(section: str, upd: dict, cfg: dict):
@@ -452,25 +476,15 @@ def validate(section: str, upd: dict, cfg: dict):
     elif section == "logic":
         if c["logic"] not in LOGICS:
             raise HTTPException(400, "Choose one of: low, medium, high, rare")
-        for name in LOGICS:
-            lg = c["logics"].get(name) or {}
-            try:
-                lg = {"below_pct": int(lg["below_pct"]), "lo": float(lg["lo"]), "hi": float(lg["hi"]),
-                      "below_12_pct": int(lg.get("below_12_pct", 15)), "below_15_pct": int(lg.get("below_15_pct", 40))}
-            except (KeyError, TypeError, ValueError):
-                raise HTTPException(400, f"Logic '{name}' needs below %, range from and range to")
-            if not (0 <= lg["below_12_pct"] <= lg["below_15_pct"] <= lg["below_pct"] <= 100 and 2 <= lg["lo"] <= lg["hi"] <= 3000):
-                raise HTTPException(400, f"Logic '{name}': need % below 1.2× ≤ % below 1.5× ≤ % below 2× (0–100) and 2× ≤ from ≤ to ≤ 3000×")
-            c["logics"][name] = lg
-        upd["logics"] = c["logics"]
+        upd["logics"] = {name: {"bands": clean_bands((c["logics"].get(name) or {}).get("bands"), f"Logic '{name}'")}
+                         for name in LOGICS}
     elif section == "payout":
         if c["wallet_pct"] not in (10, 20, 30, 50):
             raise HTTPException(400, "Arena wallet allocation must be 10%, 20%, 30% or 50%")
         if c["fixed_cap"] < 0:
             raise HTTPException(400, "Fixed payout cap cannot be negative")
     elif section == "phases":
-        if not 0 <= c["empty_below_pct"] <= 100 or not 1.01 <= c["empty_split"] <= c["empty_max"] <= 3000:
-            raise HTTPException(400, "Ranges must be from ≤ to, between 1.01× and 3000×, percentage 0–100")
+        upd["empty_bands"] = clean_bands(c["empty_bands"], "Empty rounds")
 
 
 @router.put("/admin/pulse/config/{section}")
@@ -482,7 +496,7 @@ async def admin_pulse_config(section: str, body: dict, request: Request, admin=D
     for k, typ in spec.items():
         if k in body:
             try:
-                upd[k] = body[k] if typ in (dict, bool) else typ(body[k])
+                upd[k] = body[k] if typ in (dict, bool, list) else typ(body[k])
             except (TypeError, ValueError):
                 raise HTTPException(400, f"Invalid value for {k}")
             if typ is bool and not isinstance(upd[k], bool):
