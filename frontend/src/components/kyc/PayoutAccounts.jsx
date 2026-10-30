@@ -5,9 +5,14 @@ import { api, errMsg } from "@/lib/api";
 import { Field, SilverButton, Badge } from "@/components/common";
 
 const AddAccount = ({ onDone }) => {
-  const [f, setF] = useState({ kind: "bank", holder_name: "", account_number: "", ifsc: "", upi_id: "", password: "" });
+  const [f, setF] = useState({ kind: "bank", holder_name: "", account_number: "", ifsc: "", upi_id: "", password: "", email_otp: "" });
   const [busy, setBusy] = useState(false);
+  const [sentTo, setSentTo] = useState("");
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const sendOtp = async () => {
+    try { const { data } = await api.post("/payout-accounts/otp"); setSentTo(data.email); toast.success(`Code sent to ${data.email}`); }
+    catch (e) { toast.error(errMsg(e)); }
+  };
   const save = async () => {
     setBusy(true);
     try { await api.post("/payout-accounts", f); toast.success("Account added. Awaiting admin verification."); onDone(); }
@@ -27,7 +32,10 @@ const AddAccount = ({ onDone }) => {
         <Field label="IFSC" value={f.ifsc} onChange={(e) => setF({ ...f, ifsc: e.target.value.toUpperCase() })} testid="account-ifsc-input" />
       </>) : <Field label="UPI ID" placeholder="name@bank" value={f.upi_id} onChange={set("upi_id")} testid="account-upi-input" />}
       <Field label="Confirm with your password" type="password" value={f.password} onChange={set("password")} testid="account-password-input" />
-      <SilverButton onClick={save} disabled={busy || !f.holder_name || !f.password} data-testid="account-save-button">ADD ACCOUNT</SilverButton>
+      <button type="button" onClick={sendOtp} className="ghost-chip w-full h-10 rounded-full text-xs font-semibold" data-testid="account-send-otp-button">
+        {sentTo ? `Resend code (sent to ${sentTo})` : "Send code to my registered email"}</button>
+      <Field label="6-digit email code" inputMode="numeric" maxLength={6} value={f.email_otp} onChange={(e) => setF({ ...f, email_otp: e.target.value.replace(/\D/g, "") })} testid="account-otp-input" />
+      <SilverButton onClick={save} disabled={busy || !f.holder_name || !f.password || f.email_otp.length !== 6} data-testid="account-save-button">ADD ACCOUNT</SilverButton>
     </div>
   );
 };

@@ -3,21 +3,24 @@ import { Link } from "react-router-dom";
 import { api, inr, dt } from "@/lib/api";
 import { MobileShell, Stat, Badge, Empty } from "@/components/common";
 import { WagerProgress } from "@/components/WagerProgress";
+import { EarnUnlimitedBadge } from "@/components/chain/ChainPromo";
 
 const TABS = [["", "All"], ["bet_stake", "Bets"], ["bet_win", "Wins"], ["deposit", "Deposits"],
   ["withdraw_reserve,withdraw_complete,withdraw_refund", "Withdrawals"], ["withdraw_refund", "Refunds"], ["promotion", "Bonuses"],
   ["manual_credit,manual_debit", "Adjustments"]];
 const LABEL = { bet_stake: "Bet stake", bet_win: "Winning return", deposit: "Deposit", withdraw_reserve: "Withdrawal reserved",
   withdraw_complete: "Withdrawal paid", withdraw_refund: "Withdrawal refund", manual_credit: "Admin credit",
-  manual_debit: "Admin debit", promotion: "Bonus" };
+  manual_debit: "Admin debit", promotion: "Bonus", chain_transfer: "From chain earnings" };
 
 export default function Wallet() {
   const [w, setW] = useState(null);
   const [tab, setTab] = useState("");
   const [rows, setRows] = useState([]);
   const [bets, setBets] = useState([]);
+  const [chainBal, setChainBal] = useState(0);
   useEffect(() => {
     api.get("/wallet").then(({ data }) => setW(data));
+    api.get("/chain").then(({ data }) => setChainBal(data.balance)).catch(() => {});
     api.get("/game/my-bets").then(({ data }) => setBets(data));
   }, []);
   useEffect(() => { api.get("/wallet/ledger", { params: { type: tab } }).then(({ data }) => setRows(data)); }, [tab]);
@@ -32,6 +35,12 @@ export default function Wallet() {
           <Link to="/withdraw" className="ghost-chip rounded-full h-11 flex-1 flex items-center justify-center font-bold" data-testid="wallet-withdraw-link">Withdraw</Link>
         </div>
       </div>
+      <Link to="/chain" className="panel p-4 mb-4 flex items-center justify-between border border-[#d4af37]/40" data-testid="wallet-chain-card">
+        <div><EarnUnlimitedBadge /><div className="mt-1.5 text-sm font-bold text-white">Chain earnings</div>
+          <div className="text-[11px] text-neutral-500">Separate balance · no wagering · withdraw from ₹1,000</div></div>
+        <div className="text-right"><div className="text-xl font-black gold-text mono" data-testid="wallet-chain-balance">{inr(chainBal)}</div>
+          <div className="text-[11px] text-neutral-400">Open ›</div></div>
+      </Link>
       <div className="grid grid-cols-2 gap-3 mb-6">
         <Stat label="Pending deposits" value={inr(w?.pending_deposits)} testid="stat-pending-deposits" />
         <Stat label="Pending withdrawals" value={inr(w?.pending_withdrawals)} testid="stat-pending-withdrawals" />

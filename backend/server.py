@@ -23,6 +23,7 @@ import partners  # noqa: E402
 import payments  # noqa: E402
 import pulse  # noqa: E402
 import kyc  # noqa: E402
+import chain  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 ORIGINS = [o.strip() for o in os.environ["CORS_ORIGINS"].split(",") if o.strip()]
@@ -46,6 +47,7 @@ api.include_router(presence.router)
 api.include_router(partners.router)
 api.include_router(pulse.router)
 api.include_router(kyc.router)
+api.include_router(chain.router)
 app.include_router(api)
 
 
@@ -77,6 +79,7 @@ async def warm_qr_cache():
 async def create_indexes():
     await db.users.create_index("username", unique=True)
     await kyc.ensure_kyc_indexes()
+    await chain.ensure_chain()
     await db.users.create_index("id", unique=True)
     await db.users.create_index("email", unique=True, partialFilterExpression={"email": {"$type": "string"}})
     await db.email_otps.create_index("email", unique=True)
@@ -172,6 +175,7 @@ async def startup():
     app.state.audit = asyncio.create_task(audit_loop())
     app.state.pulse = asyncio.create_task(pulse.pulse_loop())
     app.state.pulse_watch = asyncio.create_task(pulse.pulse_watch())
+    app.state.chain = asyncio.create_task(chain.chain_loop())
 
 
 @app.on_event("shutdown")

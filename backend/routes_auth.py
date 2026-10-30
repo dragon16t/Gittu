@@ -48,6 +48,7 @@ class ForgotIn(BaseModel):
     recovery_code: str = ""
     dob: str = ""
     bank_last4: str = ""
+    email_otp: str = ""
 
 
 class ResetIn(BaseModel):
@@ -128,21 +129,30 @@ def clean_email(raw: str) -> str:
 @router.post("/auth/email-otp")
 async def send_email_otp(body: EmailOtpIn, request: Request):
     email = clean_email(body.email)
-    ipkey = f"emailotp:{client_ip(request)}"
-    await check_rate(ipkey, 10, 60)
-    await check_rate(f"emailotp:{email}", 5, 60)
     if await db.users.find_one({"email": email}, NOID):
         raise HTTPException(400, "Email already registered")
-    prev = await db.email_otps.find_one({"email": email}, NOID)
+    await issue_email_otp(email, email, request)
+    return {"ok": True, "expires_in": 600}
+
+
+async def issue_email_otp(key: str, email: str, request: Request):
+    ipkey = f"emailotp:{client_ip(request)}"
+    await check_rate(ipkey, 10, 60)
+    await check_rate(f"emailotp:{key}", 5, 60)
+    prev = await db.email_otps.find_one({"email": key}, NOID)
     if prev and (now() - datetime.fromisoformat(prev["sent_at"])).total_seconds() < 60:
         raise HTTPException(429, "Please wait a minute before requesting another code")
     code = f"{secrets.randbelow(1000000):06d}"
     await hit_rate(ipkey)
-    await hit_rate(f"emailotp:{email}")
-    await db.email_otps.update_one({"email": email}, {"$set": {
-        "code_hash": sha(f"{email}:{code}"), "sent_at": iso(), "expires_at": iso(now() + timedelta(minutes=10)), "attempts": 0}}, upsert=True)
+    await hit_rate(f"emailotp:{key}")
+    await db.email_otps.update_one({"email": key}, {"$set": {
+        "code_hash": sha(f"{key}:{code}"), "sent_at": iso(), "expires_at": iso(now() + timedelta(minutes=10)), "attempts": 0}}, upsert=True)
     asyncio.create_task(_send_otp(email, code))
-    return {"ok": True, "expires_in": 600}
+
+
+def mask_email(email: str) -> str:
+    name, _, dom = email.partition("@")
+    return f"{name[:2]}{'*' * max(2, len(name) - 2)}@{dom}"
 
 
 async def _send_otp(email: str, code: str):
@@ -215,6 +225,8 @@ async def register(body: RegisterIn, request: Request, response: Response):
         raise HTTPException(400, "Username, mobile or email already registered")
     await db.email_otps.delete_one({"email": email})
     await ensure_wallet(user["id"])
+    from chain import assign_chain_root
+    await assign_chain_root(user)
     await daily_for(user["id"])
     await create_session(response, user, request)
     await audit(user, "user.register", user["id"], request=request)
@@ -262,6 +274,39 @@ async def verifier_me(user=Depends(current_verifier)):
     return public_user(user)
 
 
+@router.post("/auth/forgot/email-otp")
+async def forgot_email_otp(body: ForgotIn, request: Request):
+    user = await find_reset_user(body.username)
+    if not user or not user.get("email"):
+        raise HTTPException(400, "No account with a registered email found for this username / mobile")
+    await issue_email_otp(f"reset:{user['email']}", user["email"], request)
+    return {"ok": True, "email": mask_email(user["email"]), "expires_in": 600}
+
+
+@router.post("/auth/forgot/verify-email")
+async def forgot_verify_email(body: ForgotIn, request: Request):
+    user = await find_reset_user(body.username)
+    if not user or not user.get("email"):
+        raise HTTPException(400, "Verification failed")
+    key = f"reset:{user['email']}"
+    await consume_email_otp(key, body.email_otp)
+    await db.email_otps.delete_one({"email": key})
+    return await issue_reset_token(user)
+
+
+async def find_reset_user(raw: str):
+    username = raw.strip().lower()
+    q = {"mobile": username} if re.fullmatch(r"[6-9]\d{9}", username) else {"username": username}
+    return await db.users.find_one({**q, "role": "user"})
+
+
+async def issue_reset_token(user: dict):
+    token = secrets.token_urlsafe(32)
+    await db.password_resets.insert_one({"id": uid(), "user_id": user["id"], "token_hash": sha(token), "used": False,
+                                         "expires_at": now() + timedelta(minutes=15), "created_at": iso()})
+    return {"reset_token": token, "expires_in": 900}
+
+
 @router.post("/auth/forgot/verify")
 async def forgot_verify(body: ForgotIn, request: Request):
     username = body.username.strip().lower()
@@ -281,10 +326,7 @@ async def forgot_verify(body: ForgotIn, request: Request):
     if not ok:
         await hit_rate(key)
         raise HTTPException(400, "Verification failed")
-    token = secrets.token_urlsafe(32)
-    await db.password_resets.insert_one({"id": uid(), "user_id": user["id"], "token_hash": sha(token), "used": False,
-                                         "expires_at": now() + timedelta(minutes=15), "created_at": iso()})
-    return {"reset_token": token, "expires_in": 900}
+    return await issue_reset_token(user)
 
 
 @router.post("/auth/forgot/reset")

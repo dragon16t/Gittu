@@ -7,7 +7,7 @@ const HI = {
   "FEEL THE PULSE": "पल्स महसूस करें", "PREDICT. WIN. REPEAT.": "अनुमान. जीत. दोहराएं.",
   "Home": "होम", "Pulse Arena": "पल्स एरीना", "Oddy Nacho": "ऑडी नाचो", "History": "इतिहास",
   "Place your bets": "अपना दांव लगाएं", "Total Win": "कुल जीत", "Bet": "दांव", "PLACE BET": "दांव लगाएं",
-  "COLLECT": "कलेक्ट करें", "COLLECTED": "कलेक्ट हुआ", "ROUND LOST": "राउंड हारे", "NEXT ROUND": "अगला राउंड",
+  "COLLECT": "कलेक्ट करें", "COLLECTED": "कलेक्ट हुआ", "COLLECTING…": "कलेक्ट हो रहा…", "ROUND LOST": "राउंड हारे", "NEXT ROUND": "अगला राउंड",
   "BET PLACED": "दांव लगा", "ROUND ENDS": "राउंड खत्म", "Recent Rounds": "हाल के राउंड", "View All": "सभी देखें",
   "LOW BALANCE": "कम बैलेंस", "CHECK AMOUNT": "राशि जांचें", "BETTING CLOSED": "दांव बंद", "Round": "राउंड",
   "Login": "लॉगिन", "Sign Up": "साइन अप", "Username": "यूज़रनेम", "Password": "पासवर्ड", "Forgot Password?": "पासवर्ड भूल गए?",

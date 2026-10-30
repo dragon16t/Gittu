@@ -217,6 +217,13 @@ async def reject_wd(wid: str, body: ReasonIn, request: Request, user=Depends(cur
 
 
 async def refund_withdrawal(w):
+    if w.get("source") == "chain":
+        from chain import refund_chain_withdrawal
+        if await refund_chain_withdrawal(w):
+            if w.get("account_id"):
+                await db.payment_accounts.update_one({"id": w["account_id"]}, {"$inc": {"committed": -w["amount"]}})
+            await notify(w["user_id"], "Withdrawal rejected", f"₹{w['amount'] / 100:.2f} was returned to your chain earnings.")
+        return
     if await ledger_credit(w["user_id"], w["amount"], "withdraw_refund", f"wrefund:{w['id']}",
                            {"withdrawal_id": w["id"]}, from_reserved=True):
         if w.get("account_id"):

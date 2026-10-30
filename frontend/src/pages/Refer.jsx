@@ -4,6 +4,7 @@ import { Copy, Share2 } from "lucide-react";
 import { api, inr0, dt } from "@/lib/api";
 import { useBrand } from "@/lib/brand";
 import { MobileShell, Badge, Empty, SilverButton } from "@/components/common";
+import { ChainPromo } from "@/components/chain/ChainPromo";
 
 const Split = ({ who, amount, testid }) => (
   <div className="flex-1 rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.07] to-transparent px-3 py-4" data-testid={testid}>
@@ -41,6 +42,7 @@ export default function Refer() {
   };
   return (
     <MobileShell title="Refer & Earn" testid="refer-page">
+      <div className="mb-4"><ChainPromo /></div>
       <div className="panel p-5 rise relative overflow-hidden" data-testid="refer-hero">
         <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.12),transparent_70%)]" />
         <div className="text-center">

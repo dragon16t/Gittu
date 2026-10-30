@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, Dice5, Users, ShieldCheck, Landmark, ArrowLeftRight, FileBarChart, ScrollText, Lock, LogOut, Headset, Activity, Gift, Handshake, Orbit, Fingerprint } from "lucide-react";
+import { LayoutDashboard, Dice5, Users, ShieldCheck, Landmark, ArrowLeftRight, FileBarChart, ScrollText, Lock, LogOut, Headset, Activity, Gift, Handshake, Orbit, Fingerprint, Infinity as InfinityIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { BrandName } from "@/lib/brand";
@@ -19,11 +19,12 @@ import SecurityTab from "./SecurityTab";
 import TicketsTab from "./TicketsTab";
 import WorkloadTab from "./WorkloadTab";
 import KycTab from "./KycTab";
+import ChainTab from "./ChainTab";
 
 const TABS = [
   ["dashboard", "Dashboard", LayoutDashboard, DashboardTab], ["game", "Game Configuration", Dice5, GameTab], ["arena", "Game Arena", Orbit, GameArenaTab],
   ["users", "User Management", Users, UsersTab], ["verifiers", "Payment Verifiers", ShieldCheck, VerifiersTab],
-  ["accounts", "Payment Accounts", Landmark, AccountsTab], ["payments", "Deposits & Withdrawals", ArrowLeftRight, PaymentsTab], ["kyc", "KYC Verification", Fingerprint, KycTab],
+  ["accounts", "Payment Accounts", Landmark, AccountsTab], ["payments", "Deposits & Withdrawals", ArrowLeftRight, PaymentsTab], ["kyc", "KYC Verification", Fingerprint, KycTab], ["chain", "Chain Pool", InfinityIcon, ChainTab],
   ["tickets", "Support Tickets", Headset, TicketsTab],
   ["bonus", "Bonus Management", Gift, BonusTab], ["franchisee", "Franchisee Management", Handshake, FranchiseeTab],
   ["workload", "Agent Workload", Activity, WorkloadTab],

@@ -48,7 +48,7 @@ export default function Pulse() {
     let bets = data.my_bets;
     Object.entries(pending.current).forEach(([slot, p]) => {
       const srv = bets.find((b) => b.slot === +slot);
-      const done = p.kind === "bet" ? !!srv : srv && srv.status !== "active";
+      const done = p.kind === "bet" ? !!srv : false;
       if (done || data.round?.id !== p.round_id) { delete pending.current[slot]; return; }
       bets = [...bets.filter((b) => b.slot !== +slot), p.bet];
       if (balance != null) balance += p.delta;
@@ -66,7 +66,7 @@ export default function Pulse() {
       if (prev?.round?.id && prev.round.id === data.round?.id) {
         data.my_bets.forEach((b) => {
           const old = prev.my_bets.find((o) => o.slot === b.slot);
-          if (old?.status === "active" && b.status === "lost") fly(b.slot, `-${inr(b.stake)}`, false);
+          if (old?.status === "active" && b.status === "lost" && pending.current[b.slot]?.kind !== "collect") fly(b.slot, `-${inr(b.stake)}`, false);
         });
       }
       const merged = merge(data);
@@ -146,6 +146,7 @@ export default function Pulse() {
     try {
       if (placeable) {
         const stake = amounts[slot];
+        if (base.balance == null || stake > base.balance) { showFlash(slot, tr("LOW BALANCE")); return; }
         pending.current[slot] = { kind: "bet", round_id: r.id, delta: -stake, bet: { slot, stake, status: "active", round_id: r.id } };
         setState((st) => (ref.current = { ...st, balance: st.balance - stake, my_bets: [...st.my_bets.filter((b) => b.slot !== slot), pending.current[slot].bet] }));
         playBetSound();
@@ -153,18 +154,22 @@ export default function Pulse() {
         delete pending.current[slot];
         setState((st) => (ref.current = { ...st, balance: data.balance, my_bets: [...st.my_bets.filter((b) => b.slot !== slot), data.bet] }));
       } else {
-        const payout = payoutAt(bet.stake, m);
-        pending.current[slot] = { kind: "collect", round_id: r.id, delta: payout, bet: { ...bet, status: "collected", payout, multiplier: m } };
-        setState((st) => (ref.current = { ...st, balance: st.balance + payout, my_bets: st.my_bets.map((b) => (b.slot === slot ? pending.current[slot].bet : b)) }));
-        playWinSound();
-        fly(slot, `+${inr(payout)}`, true);
+        // server is the only judge of a collect: no win shown until it confirms
+        pending.current[slot] = { kind: "collect", round_id: r.id, delta: 0, bet: { ...bet, collecting: true } };
+        setState((st) => (ref.current = { ...st, my_bets: st.my_bets.map((b) => (b.slot === slot ? pending.current[slot].bet : b)) }));
         const { data } = await api.post("/pulse/collect", { round_id: r.id, slot, m });
         delete pending.current[slot];
-        setState((st) => (ref.current = { ...st, balance: data.balance, my_bets: st.my_bets.map((b) => (b.slot === slot ? { ...b, ...data.bet } : b)) }));
+        playWinSound();
+        fly(slot, `+${inr(data.bet.payout)}`, true);
+        setState((st) => (ref.current = { ...st, balance: data.balance, my_bets: st.my_bets.map((b) => (b.slot === slot ? { ...b, ...data.bet, collecting: false } : b)) }));
       }
     } catch (e) {
+      const wasCollect = pending.current[slot]?.kind === "collect";
       delete pending.current[slot];
-      setState((ref.current = base));
+      if (wasCollect && /ended|crash|not active/i.test(errMsg(e))) {
+        fly(slot, `-${inr(bet.stake)}`, false);
+        setState((st) => (ref.current = { ...st, my_bets: st.my_bets.map((b) => (b.slot === slot ? { ...b, status: "lost", collecting: false } : b)) }));
+      } else setState((ref.current = base));
       if (placeable) {
         const msg = errMsg(e).toLowerCase();
         showFlash(slot, tr(msg.includes("balance") ? "LOW BALANCE" : msg.includes("between") ? "CHECK AMOUNT" : "BETTING CLOSED"));
@@ -199,7 +204,8 @@ export default function Pulse() {
         <div className="grid grid-cols-2 gap-2.5">
           {[1, 2].map((slot) => (
             <BetCard key={slot} slot={slot} amount={amounts[slot]} setAmount={(v) => setAmounts((a) => ({ ...a, [slot]: v }))}
-              bet={bets.find((b) => b.slot === slot)} status={r?.status} m={m} busy={!!busy[slot]} flash={flash[slot]} onAction={() => act(slot)} />
+              bet={bets.find((b) => b.slot === slot)} status={r?.status} m={m} busy={!!busy[slot]}
+              lowBalance={!!user && (state?.balance == null || amounts[slot] > state.balance)} flash={flash[slot]} onAction={() => act(slot)} />
           ))}
         </div>
         <RecentRounds rounds={state?.recent || NONE} />

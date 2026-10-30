@@ -86,15 +86,17 @@ export const TimerBar = ({ status, secs, total, totalWin }) => {
 
 const CHIPS = [1000, 5000, 10000, 50000];
 
-export const BetCard = ({ slot, amount, setAmount, bet, status, m, busy, flash, onAction }) => {
+export const BetCard = ({ slot, amount, setAmount, bet, status, m, busy, flash, onAction, lowBalance }) => {
   const t = useT();
   const live = bet && bet.status === "active";
   const locked = !!bet || status !== "betting";
   let label, tone = "silver", disabled = busy;
   if (bet?.status === "collected") { label = `${t("COLLECTED")} ${inr(bet.payout)}`; tone = "done"; disabled = true; }
   else if (bet?.status === "lost") { label = t("ROUND LOST"); tone = "lost"; disabled = true; }
+  else if (live && bet.collecting) { label = t("COLLECTING…"); tone = "green"; disabled = true; }
   else if (live && status === "running") { label = `${t("COLLECT")} ${inr(Math.floor(bet.stake * Math.round(m * 100) / 100))}`; tone = "green"; }
   else if (live) { label = `${t("BET PLACED")} ${inr(bet.stake)}`; tone = "placed"; disabled = true; }
+  else if (status === "betting" && lowBalance) { label = t("LOW BALANCE"); tone = "wait"; disabled = true; }
   else if (status === "betting") label = t("PLACE BET");
   else { label = t("NEXT ROUND"); tone = "wait"; disabled = true; }
   const toneCls = {

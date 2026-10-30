@@ -7,6 +7,7 @@ import { ART, avatarFor } from "@/lib/assets";
 import { AppHeader } from "@/components/lobby/AppHeader";
 import { useT, LangSwitch } from "@/lib/i18n";
 import { BottomNav } from "@/components/lobby/BottomNav";
+import { ChainPromo } from "@/components/chain/ChainPromo";
 
 const LiveWins = ({ wins }) => {
   const t = useT();
@@ -89,6 +90,7 @@ export default function Home() {
           <GameCard to="/oddy-nacho" art={ART.oddyCard} accent="#FFC52E" glow="rgba(255,197,46,0.35)" testid="oddy-card" tagline="PREDICT. WIN. REPEAT."
             title={<div className="italic font-black text-[clamp(20px,5.8vw,28px)] leading-[0.95]"><div className="text-[#FFC52E]">ODDY</div><div className="silver-text">NACHO</div></div>} />
         </div>
+        <ChainPromo />
       </div>
       <BottomNav />
     </div>

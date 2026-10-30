@@ -11,6 +11,7 @@ from pymongo.errors import DuplicateKeyError
 from core import (db, iso, uid, current_user, current_admin, audit, notify, alert, enc, dec, verify_pw, put_file, get_file,
                   JWT_SECRET)
 from payments import OPEN_WITHDRAW
+from routes_auth import issue_email_otp, consume_email_otp, mask_email
 
 router = APIRouter()
 P = {"_id": 0}
@@ -185,6 +186,16 @@ class AccountIn(BaseModel):
     ifsc: str = ""
     upi_id: str = ""
     password: str
+    email_otp: str
+
+
+@router.post("/payout-accounts/otp")
+async def account_otp(request: Request, user=Depends(current_user)):
+    full = await db.users.find_one({"id": user["id"]}, P)
+    if not full.get("email"):
+        raise HTTPException(400, "No email on your account. Contact support to add one.")
+    await issue_email_otp(f"acct:{full['email']}", full["email"], request)
+    return {"ok": True, "email": mask_email(full["email"])}
 
 
 @router.post("/payout-accounts")
@@ -192,6 +203,10 @@ async def add_account(body: AccountIn, request: Request, user=Depends(current_us
     full = await db.users.find_one({"id": user["id"]})
     if not verify_pw(body.password, full["password_hash"]):
         raise HTTPException(401, "Password confirmation failed")
+    if not full.get("email"):
+        raise HTTPException(400, "No email on your account. Contact support to add one.")
+    otp_key = f"acct:{full['email']}"
+    await consume_email_otp(otp_key, body.email_otp)
     k = await db.kyc.find_one({"user_id": user["id"]}, P)
     if not k or k["status"] not in ("pending", "verified"):
         raise HTTPException(400, "Submit your Aadhaar KYC before adding withdrawal accounts")
@@ -229,6 +244,7 @@ async def add_account(body: AccountIn, request: Request, user=Depends(current_us
             await db.payout_accounts.insert_one(dict(doc, history=[{"at": iso(), "event": "added"}]))
         except DuplicateKeyError:
             raise HTTPException(400, "This account is already linked")
+    await db.email_otps.delete_one({"email": otp_key})
     await notify(user["id"], "Withdrawal account added", "Your account was added and is awaiting admin verification.")
     await audit(user, "payout_account.added", doc["id"], {"kind": body.kind}, request)
     return acct_public(doc)
