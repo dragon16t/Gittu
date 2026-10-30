@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, errMsg, inr, dt, toPaise } from "@/lib/api";
 import { Section, DataTable, Input, Btn, Modal } from "./ui";
-import { BandEditor, bandTotal, toBands } from "./ArenaBands";
+import { BandEditor, OneXShare, bandTotal, toBands } from "./ArenaBands";
 
 const LOGIC_INFO = {
   low: "Low multiplier", medium: "Medium multiplier", high: "High multiplier", rare: "Rare high multiplier",
@@ -86,11 +86,11 @@ const Logic1 = ({ cfg, dist, save }) => {
   const submit = () => {
     const bad = Object.keys(LOGIC_INFO).find((n) => Math.abs(bandTotal(lg[n].bands) - 100) > 0.01);
     if (bad) return toast.error(`${LOGIC_INFO[bad]}: percentages must add up to exactly 100%`);
-    save("logic", { logic, logics: Object.fromEntries(Object.keys(LOGIC_INFO).map((n) => [n, { bands: toBands(lg[n].bands) }])) });
+    save("logic", { logic, logics: Object.fromEntries(Object.keys(LOGIC_INFO).map((n) => [n, { bands: toBands(lg[n].bands), one_x_min: +lg[n].one_x_min, one_x_max: +lg[n].one_x_max }])) });
   };
   return (
     <Card title="Logic 1 · Random multiplier distribution" testid="arena-logic1"
-      sub="Each logic is a table of ranges whose shares add up to exactly 100%. Every round first picks a range by its % (e.g. 5% of rounds crash at 1.00×), then a random value inside it, from a fresh 256-bit cryptographic seed (sha256 commitment published first). Set From = To = 1 for an instant 1.00× crash."
+      sub="Edit any % and the other rows auto-adjust so the total stays 100%. Each round picks a range by its %, then a random value inside it (fresh 256-bit cryptographic seed, sha256 commitment published first). Of the rounds that land below 2×, the yellow box share crashes at exactly 1.00×."
       onSave={submit}>
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {Object.keys(LOGIC_INFO).map((name) => {
@@ -100,7 +100,8 @@ const Logic1 = ({ cfg, dist, save }) => {
               <button type="button" onClick={() => setLogic(name)} className="flex items-center gap-2 text-sm font-semibold" data-testid={`arena-logic-${name}-select`}>
                 <span className={`h-4 w-4 rounded-full border-2 ${on ? "border-emerald-400 bg-emerald-400" : "border-white/40"}`} />{LOGIC_INFO[name]}{on && <span className="text-[10px] text-emerald-300">ACTIVE</span>}
               </button>
-              <BandEditor bands={lg[name].bands} onChange={(b) => setLg({ ...lg, [name]: { bands: b } })} testid={`arena-logic-${name}-bands`} />
+              <BandEditor bands={lg[name].bands} onChange={(b) => setLg({ ...lg, [name]: { ...lg[name], bands: b } })} testid={`arena-logic-${name}-bands`} />
+              <OneXShare min={lg[name].one_x_min} max={lg[name].one_x_max} onChange={(a, b) => setLg({ ...lg, [name]: { ...lg[name], one_x_min: a, one_x_max: b } })} testid={`arena-logic-${name}-onex`} />
             </div>
           );
         })}
@@ -140,15 +141,17 @@ const Logic2 = ({ cfg, save }) => {
 
 const Phases = ({ cfg, save }) => {
   const [bands, setBands] = useState(cfg.empty_bands);
+  const [ox, setOx] = useState([cfg.empty_one_x_min, cfg.empty_one_x_max]);
   const submit = () => {
     if (Math.abs(bandTotal(bands) - 100) > 0.01) return toast.error("Empty rounds: percentages must add up to exactly 100%");
-    save("phases", { empty_bands: toBands(bands) });
+    save("phases", { empty_bands: toBands(bands), empty_one_x_min: +ox[0], empty_one_x_max: +ox[1] });
   };
   return (
     <Card title="Empty rounds (no stakes)" testid="arena-phases"
       sub="Rounds without stakes follow this table (shares total 100%). In Logic 2, when every player has collected, the round also ends by this table."
       onSave={submit}>
-      <div className="max-w-md"><BandEditor bands={bands} onChange={setBands} testid="arena-empty-bands" /></div>
+      <div className="max-w-md space-y-3"><BandEditor bands={bands} onChange={setBands} testid="arena-empty-bands" />
+        <OneXShare min={ox[0]} max={ox[1]} onChange={(a, b) => setOx([a, b])} testid="arena-empty-onex" /></div>
     </Card>
   );
 };

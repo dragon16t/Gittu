@@ -26,13 +26,14 @@ DEFAULT = {
     "id": "pulse", "enabled": True, "betting_seconds": 7, "min_bet": 1000, "max_bet": 1000000, "max_multiplier": 3000.0,
     "active_logic": "rng", "logic": "low",
     "logics": {
-        "low": {"bands": [[1.0, 1.0, 5], [1.01, 1.3, 20], [1.3, 1.7, 20], [1.7, 2.5, 25], [2.5, 5.0, 18], [5.0, 20.0, 9], [20.0, 100.0, 3]]},
-        "medium": {"bands": [[1.0, 1.0, 4], [1.01, 1.5, 18], [1.5, 2.0, 20], [2.0, 3.0, 22], [3.0, 6.0, 20], [6.0, 25.0, 12], [25.0, 200.0, 4]]},
-        "high": {"bands": [[1.0, 1.0, 4], [1.01, 1.5, 14], [1.5, 2.5, 20], [2.5, 5.0, 24], [5.0, 10.0, 20], [10.0, 50.0, 14], [50.0, 500.0, 4]]},
-        "rare": {"bands": [[1.0, 1.0, 3], [1.01, 1.5, 12], [1.5, 3.0, 20], [3.0, 10.0, 25], [10.0, 50.0, 22], [50.0, 500.0, 13], [500.0, 3000.0, 5]]},
+        "low": {"bands": [[1.01, 1.3, 25], [1.3, 1.7, 20], [1.7, 2.5, 25], [2.5, 5.0, 18], [5.0, 20.0, 9], [20.0, 100.0, 3]], "one_x_min": 30, "one_x_max": 40},
+        "medium": {"bands": [[1.01, 1.5, 22], [1.5, 2.0, 20], [2.0, 3.0, 22], [3.0, 6.0, 20], [6.0, 25.0, 12], [25.0, 200.0, 4]], "one_x_min": 30, "one_x_max": 40},
+        "high": {"bands": [[1.01, 1.5, 18], [1.5, 2.5, 20], [2.5, 5.0, 24], [5.0, 10.0, 20], [10.0, 50.0, 14], [50.0, 500.0, 4]], "one_x_min": 30, "one_x_max": 40},
+        "rare": {"bands": [[1.01, 1.5, 15], [1.5, 3.0, 20], [3.0, 10.0, 25], [10.0, 50.0, 22], [50.0, 500.0, 13], [500.0, 3000.0, 5]], "one_x_min": 30, "one_x_max": 40},
     },
     "pct_enabled": True, "wallet_pct": 30, "cap_enabled": True, "fixed_cap": 1000000, "carry_forward": True,
-    "empty_bands": [[1.0, 1.0, 5], [1.01, 1.5, 18], [1.5, 2.0, 20], [2.0, 3.0, 22], [3.0, 6.0, 18], [6.0, 20.0, 12], [20.0, 100.0, 5]],
+    "empty_bands": [[1.01, 1.5, 23], [1.5, 2.0, 20], [2.0, 3.0, 22], [3.0, 6.0, 18], [6.0, 20.0, 12], [20.0, 100.0, 5]],
+    "empty_one_x_min": 30, "empty_one_x_max": 40,
 }
 
 
@@ -43,7 +44,7 @@ async def pcfg() -> dict:
         c = dict(DEFAULT)
     c.pop("_id", None)
     stored = c.get("logics", {})
-    return {**DEFAULT, **c, "logics": {n: {**DEFAULT["logics"][n], **{k: v for k, v in stored.get(n, {}).items() if k == "bands"}}
+    return {**DEFAULT, **c, "logics": {n: {**DEFAULT["logics"][n], **{k: v for k, v in stored.get(n, {}).items() if k in ("bands", "one_x_min", "one_x_max")}}
                                        for n in LOGICS}}
 
 
@@ -66,8 +67,8 @@ def floor2(m: float) -> float:
     return math.floor(m * 100 + 1e-9) / 100
 
 
-def pick_band(bands: list, tier: float, v: float, cap: float) -> float:
-    """Weighted band pick (shares total 100%), then a log-uniform value inside the band."""
+def pick_band(bands: list, tier: float, v: float, cap: float, one_x: tuple = (0, 0), u1: float = 0.0, u2: float = 1.0) -> float:
+    """Weighted band pick (shares total 100%), log-uniform value inside; below 2x a random 1.00x share applies."""
     acc = 0.0
     lo, hi = bands[-1][0], bands[-1][1]
     for b_lo, b_hi, pct in bands:
@@ -75,14 +76,19 @@ def pick_band(bands: list, tier: float, v: float, cap: float) -> float:
         if tier < acc:
             lo, hi = b_lo, b_hi
             break
-    return floor2(max(1.0, min(_logu(v, min(lo, cap), min(hi, cap)), cap)))
+    m = floor2(max(1.0, min(_logu(v, min(lo, cap), min(hi, cap)), cap)))
+    if m < 2 and u2 * 100 < one_x[0] + u1 * (one_x[1] - one_x[0]):
+        return 1.0
+    return m
 
 
 def endpoints(seed: str, cfg: dict) -> dict:
     cap = cfg["max_multiplier"]
-    bands = cfg["logics"][cfg["logic"]]["bands"]
-    return {"main": pick_band(bands, _u(seed, "tier") * 100, _u(seed, "value"), cap),
-            "sim": pick_band(cfg["empty_bands"], _u(seed, "sim_tier") * 100, _u(seed, "sim"), cap)}
+    lg = cfg["logics"][cfg["logic"]]
+    return {"main": pick_band(lg["bands"], _u(seed, "tier") * 100, _u(seed, "value"), cap,
+                              (lg["one_x_min"], lg["one_x_max"]), _u(seed, "onex_share"), _u(seed, "onex")),
+            "sim": pick_band(cfg["empty_bands"], _u(seed, "sim_tier") * 100, _u(seed, "sim"), cap,
+                             (cfg["empty_one_x_min"], cfg["empty_one_x_max"]), _u(seed, "sim_onex_share"), _u(seed, "sim_onex"))}
 
 
 def mult_at(r: dict, t) -> float:
@@ -439,8 +445,18 @@ SECTIONS = {
     "mode": {"active_logic": str},
     "logic": {"logic": str, "logics": dict},
     "payout": {"pct_enabled": bool, "wallet_pct": int, "cap_enabled": bool, "fixed_cap": int, "carry_forward": bool},
-    "phases": {"empty_bands": list},
+    "phases": {"empty_bands": list, "empty_one_x_min": float, "empty_one_x_max": float},
 }
+
+
+def clean_onex(src: dict, kmin: str, kmax: str, label: str) -> dict:
+    try:
+        lo, hi = float(src.get(kmin, 30)), float(src.get(kmax, 40))
+    except (TypeError, ValueError):
+        raise HTTPException(400, f"{label}: 1.00× share must be numbers")
+    if not 0 <= lo <= hi <= 100:
+        raise HTTPException(400, f"{label}: 1.00× share needs 0 ≤ min ≤ max ≤ 100")
+    return {kmin: round(lo, 2), kmax: round(hi, 2)}
 
 
 def clean_bands(raw, label: str) -> list:
@@ -476,7 +492,8 @@ def validate(section: str, upd: dict, cfg: dict):
     elif section == "logic":
         if c["logic"] not in LOGICS:
             raise HTTPException(400, "Choose one of: low, medium, high, rare")
-        upd["logics"] = {name: {"bands": clean_bands((c["logics"].get(name) or {}).get("bands"), f"Logic '{name}'")}
+        upd["logics"] = {name: {"bands": clean_bands((c["logics"].get(name) or {}).get("bands"), f"Logic '{name}'"),
+                                **clean_onex(c["logics"].get(name) or {}, "one_x_min", "one_x_max", f"Logic '{name}'")}
                          for name in LOGICS}
     elif section == "payout":
         if c["wallet_pct"] not in (10, 20, 30, 50):
@@ -485,6 +502,7 @@ def validate(section: str, upd: dict, cfg: dict):
             raise HTTPException(400, "Fixed payout cap cannot be negative")
     elif section == "phases":
         upd["empty_bands"] = clean_bands(c["empty_bands"], "Empty rounds")
+        upd.update(clean_onex(c, "empty_one_x_min", "empty_one_x_max", "Empty rounds"))
 
 
 @router.put("/admin/pulse/config/{section}")
