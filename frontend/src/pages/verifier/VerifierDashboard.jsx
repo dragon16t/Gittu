@@ -79,8 +79,11 @@ function WithdrawalRow({ w, reload }) {
     <tr className="border-t border-white/5 align-top" data-testid={`verifier-withdrawal-${sid}`}>
       <td className="py-3 pr-3">{w.username}</td><td className="mono pr-3 font-bold">{inr(w.amount)}</td>
       <td className="pr-3 text-xs">
-        <div className="mono text-sm text-white" data-testid={`withdrawal-upi-${sid}`}>{w.destination?.upi_id || "—"}</div>
+        <div className="mono text-sm text-white" data-testid={`withdrawal-upi-${sid}`}>{w.destination?.upi_id || `${w.destination?.account_number} · ${w.destination?.ifsc}`}</div>
         <div className="text-neutral-500">{w.destination?.holder_name}</div>
+        {w.kyc?.status === "verified"
+          ? <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-emerald-400/40 px-2 py-0.5 text-[10px] font-bold text-emerald-300" data-testid={`withdrawal-kyc-badge-${sid}`}>AADHAAR VERIFIED · {w.kyc.aadhaar_masked}</div>
+          : <div className="mt-1 inline-flex rounded-full border border-red-400/40 px-2 py-0.5 text-[10px] font-bold text-red-300" data-testid={`withdrawal-kyc-badge-${sid}`}>NOT KYC VERIFIED · DO NOT PAY</div>}
       </td>
       <td className="pr-3"><Badge status={w.status} />{w.reference && <div className="text-[10px] mono text-neutral-500 mt-1">{w.reference}</div>}</td>
       <td className="whitespace-nowrap space-x-1.5">

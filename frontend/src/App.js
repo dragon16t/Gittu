@@ -14,6 +14,7 @@ import Pulse from "@/pages/Pulse";
 import Wallet from "@/pages/Wallet";
 import Deposit from "@/pages/Deposit";
 import Withdraw from "@/pages/Withdraw";
+import Kyc from "@/pages/Kyc";
 import Settings from "@/pages/Settings";
 import Messages from "@/pages/Messages";
 import Refer from "@/pages/Refer";
@@ -72,6 +73,7 @@ export default function App() {
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/deposit" element={<Deposit />} />
               <Route path="/withdraw" element={<Withdraw />} />
+              <Route path="/kyc" element={<Kyc />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/messages" element={<Messages />} />
               <Route path="/refer" element={<Refer />} />

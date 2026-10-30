@@ -5,6 +5,7 @@ from core import db, iso, current_verifier, ledger_credit, reserved_settle, audi
 from payments import (dispatch_withdrawals, commission_summary, accrue_commission, release_withdrawal, assign_withdrawal,
                       credit_deposit_notice)
 from promotions import on_deposit_verified
+from kyc import kyc_badges, kyc_verified
 
 router = APIRouter(prefix="/verifier")
 P = {"_id": 0}
@@ -29,12 +30,18 @@ async def vprofile(user: dict) -> dict:
     return v
 
 
-def wd_view(w: dict) -> dict:
+def wd_view(w: dict, badges: dict = None) -> dict:
     out = {k: v for k, v in w.items() if k not in ("destination", "client_key")}
     d = w.get("destination", {})
     out["destination"] = {"holder_name": d.get("holder_name"), "account_number": dec(d.get("account_number_enc", "")),
-                          "ifsc": d.get("ifsc"), "upi_id": d.get("upi_id")}
+                          "ifsc": d.get("ifsc"), "upi_id": d.get("upi_id"), "kind": d.get("kind", "upi")}
+    out["kyc"] = (badges or {}).get(w["user_id"], {"status": "none"})
     return out
+
+
+async def require_kyc(w: dict):
+    if not await kyc_verified(w["user_id"]):
+        raise HTTPException(400, "User is not Aadhaar verified. Do not process; reject or wait for KYC approval.")
 
 
 @router.get("/dashboard")
@@ -43,13 +50,14 @@ async def dashboard(user=Depends(current_verifier)):
     accounts = await db.payment_accounts.find({"verifier_id": v["id"]}, P).to_list(50)
     deposits = await db.deposits.find({"verifier_id": v["id"]}, P).sort("created_at", -1).to_list(200)
     withdrawals = await db.withdrawals.find({"verifier_id": v["id"]}, P).sort("created_at", -1).to_list(200)
+    badges = await kyc_badges([w["user_id"] for w in withdrawals])
     commission = await db.commission_ledger.find({"verifier_id": v["id"]}, {"_id": 0, "key": 0}).sort("created_at", -1).to_list(200)
     have = set(await db.files.distinct("storage_path", {"storage_path": {"$in": [a.get("qr_path") for a in accounts if a.get("qr_path")]}, "is_deleted": False}))
     for a in accounts:
         p = a.pop("qr_path", None)
         a["has_qr"] = bool(p) and p in have
     return {"verifier": v, "accounts": accounts, "deposits": deposits,
-            "withdrawals": [wd_view(w) for w in withdrawals], "commission_ledger": commission,
+            "withdrawals": [wd_view(w, badges) for w in withdrawals], "commission_ledger": commission,
             "stats": {**await commission_summary(v["id"]),
                       "available_funds": sum(a["available_funds"] for a in accounts),
                       "reserved_funds": sum(a["committed"] for a in accounts)},
@@ -154,6 +162,7 @@ async def transition(wid, frm, to, extra=None):
 async def approve_wd(wid: str, request: Request, user=Depends(current_verifier)):
     v = await vprofile(user)
     w = await my_wd(v, wid)
+    await require_kyc(w)
     await transition(wid, "pending", "approved")
     await notify(w["user_id"], "Withdrawal approved", f"Your withdrawal of ₹{w['amount'] / 100:.2f} was approved.")
     await audit(user, "withdrawal.approved", wid, request=request)
@@ -163,7 +172,7 @@ async def approve_wd(wid: str, request: Request, user=Depends(current_verifier))
 @router.post("/withdrawals/{wid}/processing")
 async def processing_wd(wid: str, body: RefIn, request: Request, user=Depends(current_verifier)):
     v = await vprofile(user)
-    await my_wd(v, wid)
+    await require_kyc(await my_wd(v, wid))
     ref = body.reference.strip().upper()
     if len(ref) < 6:
         raise HTTPException(400, "Enter the transfer reference")
@@ -188,6 +197,7 @@ async def do_complete_withdrawal(v: dict, w: dict, user: dict, request: Request,
 async def complete_wd(wid: str, request: Request, user=Depends(current_verifier)):
     v = await vprofile(user)
     w = await my_wd(v, wid)
+    await require_kyc(w)
     await do_complete_withdrawal(v, w, user, request)
     return {"ok": True}
 

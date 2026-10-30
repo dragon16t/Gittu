@@ -40,7 +40,7 @@ class BankIn(BaseModel):
 
 class WithdrawIn(BaseModel):
     amount: int
-    upi_id: str
+    account_id: str
     client_key: str
 
 
@@ -351,9 +351,11 @@ async def put_bank(body: BankIn, request: Request, user=Depends(current_user)):
 async def create_withdrawal(body: WithdrawIn, request: Request, user=Depends(current_user)):
     if body.amount < MIN_WITHDRAWAL:
         raise HTTPException(400, f"Minimum withdrawal is ₹{MIN_WITHDRAWAL // 100}")
-    upi = body.upi_id.strip()
-    if not re.fullmatch(r"[\w.\-]{2,256}@[a-zA-Z]{2,64}", upi):
-        raise HTTPException(400, "Enter a valid UPI ID")
+    if not await db.kyc.find_one({"user_id": user["id"], "status": "verified"}, {"_id": 1}):
+        raise HTTPException(400, "Complete Aadhaar KYC verification before withdrawing")
+    b = await db.payout_accounts.find_one({"id": body.account_id, "user_id": user["id"], "status": "approved"})
+    if not b:
+        raise HTTPException(400, "Choose a verified withdrawal account")
     wal = await db.wallets.find_one({"user_id": user["id"]}, P)
     if not await db.withdrawals.find_one({"user_id": user["id"], "status": {"$nin": ["rejected", "cancelled", "failed"]}}, {"_id": 1}):
         dep = await db.deposits.aggregate([{"$match": {"user_id": user["id"], "status": "verified"}},
@@ -362,9 +364,6 @@ async def create_withdrawal(body: WithdrawIn, request: Request, user=Depends(cur
             raise HTTPException(400, "Make a first deposit of at least ₹500 to unlock your first withdrawal")
     if wal.get("wager_remaining", 0) > 0:
         raise HTTPException(400, f"Complete your wagering requirement first: ₹{wal['wager_remaining'] / 100:.2f} more in bets")
-    b = await db.bank_details.find_one({"user_id": user["id"]})
-    if not b or b.get("upi_id") != upi:
-        raise HTTPException(400, "Save this UPI ID in Bank / UPI details (password confirmed) before withdrawing")
     dup = await db.withdrawals.find_one({"user_id": user["id"], "client_key": body.client_key}, P)
     if dup:
         return dup
@@ -374,7 +373,8 @@ async def create_withdrawal(body: WithdrawIn, request: Request, user=Depends(cur
     doc = {"id": wid, "user_id": user["id"], "username": user["username"], "amount": body.amount, "status": "pending",
            "client_key": body.client_key, "account_id": None, "verifier_id": None, "reference": None,
            "destination": {"holder_name": b["holder_name"], "account_number_enc": b.get("account_number_enc", ""),
-                           "ifsc": b.get("ifsc", ""), "upi_id": b.get("upi_id", "")},
+                           "ifsc": b.get("ifsc", ""), "upi_id": b.get("upi_id", ""), "kind": b["kind"], "account_id": b["id"],
+                           "label": b.get("upi_id") or f"A/c XXXX{dec(b.get('account_number_enc', ''))[-4:]}"},
            "history": [{"at": iso(), "event": "created"}], "created_at": iso()}
     try:
         await db.withdrawals.insert_one(dict(doc))
@@ -390,4 +390,6 @@ async def create_withdrawal(body: WithdrawIn, request: Request, user=Depends(cur
 async def my_withdrawals(user=Depends(current_user)):
     rows = await db.withdrawals.find({"user_id": user["id"]}, {"_id": 0, "destination.account_number_enc": 0, "client_key": 0,
                                                                "history": 0}).sort("created_at", -1).to_list(100)
+    for r in rows:
+        r.get("destination", {}).pop("account_number_enc", None)
     return rows
