@@ -1,3 +1,4 @@
+import asyncio
 import re
 import io
 import base64
@@ -11,7 +12,7 @@ from pydantic import BaseModel
 
 from core import (db, now, iso, uid, sha, hash_pw, verify_pw, validate_password, client_ip, check_rate, hit_rate,
                   clear_rate, create_session, current_user, current_admin, current_verifier, mfa_token,
-                  read_mfa_token, audit, notify, alert, ensure_wallet, enc, dec, NOID)
+                  read_mfa_token, audit, notify, alert, ensure_wallet, enc, dec, NOID, log)
 from promotions import new_referral_code, daily_for
 from emailer import send_email, otp_html, EMAIL_FROM_NAME
 
@@ -136,12 +137,19 @@ async def send_email_otp(body: EmailOtpIn, request: Request):
     if prev and (now() - datetime.fromisoformat(prev["sent_at"])).total_seconds() < 60:
         raise HTTPException(429, "Please wait a minute before requesting another code")
     code = f"{secrets.randbelow(1000000):06d}"
-    await send_email(to=email, subject=f"{EMAIL_FROM_NAME} verification code: {code}", html=otp_html(code))
     await hit_rate(ipkey)
     await hit_rate(f"emailotp:{email}")
     await db.email_otps.update_one({"email": email}, {"$set": {
         "code_hash": sha(f"{email}:{code}"), "sent_at": iso(), "expires_at": iso(now() + timedelta(minutes=10)), "attempts": 0}}, upsert=True)
+    asyncio.create_task(_send_otp(email, code))
     return {"ok": True, "expires_in": 600}
+
+
+async def _send_otp(email: str, code: str):
+    try:
+        await send_email(to=email, subject=f"{EMAIL_FROM_NAME} verification code: {code}", html=otp_html(code))
+    except Exception as e:
+        log.warning("otp email failed for %s: %s", email, getattr(e, "detail", e))
 
 
 async def consume_email_otp(email: str, code: str):

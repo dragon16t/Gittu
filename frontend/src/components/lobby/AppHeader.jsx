@@ -2,6 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { User, Plus, Settings, Gift, Mail, Headset, Wallet, ChevronRight, Volume2, VolumeX, WalletCards } from "lucide-react";
 import { api, inr, inr0 } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 
 const Round = ({ to, icon: Icon, label, testid, dot }) => (
@@ -14,6 +15,7 @@ const Round = ({ to, icon: Icon, label, testid, dot }) => (
 
 export const AppHeader = memo(function AppHeader({ balance, music, onToggleMusic }) {
   const { user } = useSession();
+  const t = useT();
   const [refer, setRefer] = useState(30000);
   const [coupons, setCoupons] = useState(0);
   useEffect(() => {
@@ -28,7 +30,7 @@ export const AppHeader = memo(function AppHeader({ balance, music, onToggleMusic
             <User size={22} strokeWidth={1.5} />
           </Link>
           <div className="min-w-0">
-            <div className="text-neutral-300 text-[13px] leading-none">Balance</div>
+            <div className="text-neutral-300 text-[13px] leading-none">{t("Balance")}</div>
             <div className="mt-1 text-[clamp(16px,5vw,21px)] font-extrabold leading-none tracking-tight truncate" data-testid="header-balance">{user ? inr(balance) : "—"}</div>
           </div>
         </div>
@@ -39,7 +41,7 @@ export const AppHeader = memo(function AppHeader({ balance, music, onToggleMusic
             </button>
           )}
           <Link to={user ? "/deposit" : "/login"} className="silver-btn rounded-full h-10 pl-2.5 pr-1 flex items-center gap-1.5 font-bold text-[14px] shadow-[0_0_18px_rgba(0,245,138,0.25)]" data-testid="header-deposit-button">
-            <WalletCards size={17} /> Deposit
+            <WalletCards size={17} /> {t("Deposit")}
             <span className="h-8 w-8 rounded-full bg-black text-white flex items-center justify-center"><Plus size={17} /></span>
           </Link>
           <Link to={user ? "/settings" : "/login"} className="h-10 w-10 rounded-full border border-white/15 bg-[#0d1010] flex items-center justify-center" data-testid="settings-button"><Settings size={20} /></Link>
@@ -49,7 +51,7 @@ export const AppHeader = memo(function AppHeader({ balance, music, onToggleMusic
         <Link to="/refer" data-testid="refer-earn-badge"
           className="inline-flex items-center gap-2 h-9 pl-0.5 pr-2.5 rounded-full border border-[#FFC52E]/60 bg-gradient-to-r from-[#FFC52E]/15 to-transparent text-[13px] font-bold whitespace-nowrap">
           <span className="h-8 w-8 rounded-full silver-btn flex items-center justify-center"><Gift size={15} /></span>
-          <span className="text-[#FFC52E]">Refer & Earn {inr0(refer)}</span>
+          <span className="text-[#FFC52E]">{t("Refer & Earn")} {inr0(refer)}</span>
           <ChevronRight size={16} className="text-[#FFC52E]" />
         </Link>
         <div className="flex items-center gap-2">

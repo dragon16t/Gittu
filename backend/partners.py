@@ -64,7 +64,13 @@ async def partner_stats(pid: str) -> dict:
             "referral_rewards": agg.get("referral_reward", 0), "commissions": agg.get("commission", 0),
             "adjustments": agg.get("adjustment_credit", 0) - agg.get("adjustment_debit", 0),
             "total_earnings": w["total_earned"], "available": w["available"], "pending_earnings": w["pending"],
-            "reserved": w["reserved"], "pending_withdrawals": pend_wd[0]["s"] if pend_wd else 0, "withdrawn": w["total_paid"]}
+            "reserved": w["reserved"], "pending_withdrawals": pend_wd[0]["s"] if pend_wd else 0, "withdrawn": w["total_paid"],
+            "profit_carry": w.get("profit_carry", 0), **(await earning_of(pid))}
+
+
+async def earning_of(pid: str) -> dict:
+    p = await db.partners.find_one({"id": pid}, {"_id": 0, "earn_mode": 1, "profit_pct": 1, "referral_amount": 1}) or {}
+    return {"earn_mode": p.get("earn_mode") or "profit", "profit_pct": p.get("profit_pct", 5), "referral_amount": p.get("referral_amount", 5000)}
 
 
 def public_partner(p: dict) -> dict:
@@ -297,7 +303,8 @@ async def admin_create_partner(body: PartnerIn, request: Request, admin=Depends(
                                   "username": username, "email": body.email.strip(), "phone": body.phone.strip(),
                                   "business_details": body.business_details, "internal_ref": body.internal_ref,
                                   "plan_id": body.plan_id, "payout_method": body.payout_method, "payout_account": body.payout_account,
-                                  "status": "invited", "notes": [], "created_at": iso(), "created_by": admin["id"]})
+                                  "status": "invited", "notes": [], "created_at": iso(), "created_by": admin["id"],
+                                  "earn_mode": "profit", "profit_pct": 5, "referral_amount": 5000})
     await wallet(pid)
     token = await new_invite(user_id)
     await audit(admin, "partner.create", pid, {"username": username, "code": code}, request)
@@ -490,3 +497,25 @@ async def admin_pwd_action(wid: str, body: WdActionIn, request: Request, admin=D
             await move(w["partner_id"], {}, {"reserved": -w["amount"], "total_paid": w["amount"]})
     await audit(admin, f"partner_withdrawal.{body.action}", w["partner_id"], {"withdrawal": wid, "reason": body.reason, "txn_ref": upd.get("txn_ref")}, request)
     return {"ok": True}
+
+
+class EarningIn(BaseModel):
+    earn_mode: str
+    profit_pct: int = 5
+    referral_amount: int = 5000
+
+
+@router.post("/admin/partners/{pid}/earning")
+async def admin_partner_earning(pid: str, body: EarningIn, request: Request, admin=Depends(current_admin)):
+    if body.earn_mode not in ("profit", "referral"):
+        raise HTTPException(400, "Mode must be profit or referral")
+    if not 0 <= body.profit_pct <= 50:
+        raise HTTPException(400, "Profit share must be 0–50%")
+    if not 0 <= body.referral_amount <= 1000000:
+        raise HTTPException(400, "Referral amount must be ₹0–₹10,000")
+    before = await earning_of(pid)
+    r = await db.partners.update_one({"id": pid}, {"$set": body.model_dump()})
+    if not r.matched_count:
+        raise HTTPException(404, "Partner not found")
+    await audit(admin, "partner.earning", pid, {"before": before, "after": body.model_dump()}, request)
+    return await earning_of(pid)

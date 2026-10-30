@@ -63,8 +63,14 @@ def floor2(m: float) -> float:
 def endpoints(seed: str, cfg: dict) -> dict:
     lg = cfg["logics"][cfg["logic"]]
     cap = cfg["max_multiplier"]
-    if _u(seed, "tier") * 100 < lg["below_pct"]:
-        main = 1 + _u(seed, "value") * 0.99
+    tier, v = _u(seed, "tier") * 100, _u(seed, "value")
+    p12, p15 = lg.get("below_12_pct", 15), lg.get("below_15_pct", 40)
+    if tier < min(p12, lg["below_pct"]):
+        main = 1 + v * 0.2
+    elif tier < min(p15, lg["below_pct"]):
+        main = 1.2 + v * 0.3
+    elif tier < lg["below_pct"]:
+        main = 1.5 + v * 0.5
     else:
         main = _logu(_u(seed, "value"), min(lg["lo"], cap), min(lg["hi"], cap))
     return {"main": floor2(max(1.0, min(main, cap))),
@@ -186,6 +192,11 @@ async def crash(r: dict):
     await db.pulse_rounds.update_one({"id": r["id"]}, {"$set": {"closing_balance": w["balance"], "unused": unused, "settled_at": iso()}})
     if res["number"] % 3 == 0:
         await reconcile(res["number"], w["balance"])
+    if not res["simulated"]:
+        from partner_earn import round_commission
+        rows = [(b["user_id"], b["stake"], b.get("payout", 0)) async for b in db.pulse_bets.find(
+            {"round_id": r["id"]}, {"_id": 0, "user_id": 1, "stake": 1, "payout": 1})]
+        asyncio.create_task(round_commission("pulse", r["id"], res["number"], rows))
 
 
 async def reconcile(number: int, balance: int):
@@ -444,11 +455,12 @@ def validate(section: str, upd: dict, cfg: dict):
         for name in LOGICS:
             lg = c["logics"].get(name) or {}
             try:
-                lg = {"below_pct": int(lg["below_pct"]), "lo": float(lg["lo"]), "hi": float(lg["hi"])}
+                lg = {"below_pct": int(lg["below_pct"]), "lo": float(lg["lo"]), "hi": float(lg["hi"]),
+                      "below_12_pct": int(lg.get("below_12_pct", 15)), "below_15_pct": int(lg.get("below_15_pct", 40))}
             except (KeyError, TypeError, ValueError):
                 raise HTTPException(400, f"Logic '{name}' needs below %, range from and range to")
-            if not (0 <= lg["below_pct"] <= 100 and 2 <= lg["lo"] <= lg["hi"] <= 10000):
-                raise HTTPException(400, f"Logic '{name}': below % must be 0–100 and 2× ≤ from ≤ to")
+            if not (0 <= lg["below_12_pct"] <= lg["below_15_pct"] <= lg["below_pct"] <= 100 and 2 <= lg["lo"] <= lg["hi"] <= 3000):
+                raise HTTPException(400, f"Logic '{name}': need % below 1.2× ≤ % below 1.5× ≤ % below 2× (0–100) and 2× ≤ from ≤ to ≤ 3000×")
             c["logics"][name] = lg
         upd["logics"] = c["logics"]
     elif section == "payout":
@@ -517,3 +529,64 @@ async def lobby():
     wins.sort(key=lambda x: x["at"], reverse=True)
     return {"server_time": iso(), "pulse": {"players": counts["pulse"], "round": (pr or {}).get("number")},
             "oddeven": {"players": counts["oddeven"], "round": (orr or {}).get("number")}, "wins": wins[:12]}
+
+
+# ---------- live push (per-instance watcher -> websockets) ----------
+import json  # noqa: E402
+from fastapi import WebSocket, WebSocketDisconnect  # noqa: E402
+
+_SOCKS: set = set()
+
+
+async def _broadcast(msg: str):
+    dead = []
+    for ws in list(_SOCKS):
+        try:
+            await asyncio.wait_for(ws.send_text(msg), 1)
+        except Exception:
+            dead.append(ws)
+    for ws in dead:
+        _SOCKS.discard(ws)
+
+
+async def pulse_watch():
+    last_key, last_full, last_tick = None, 0.0, 0.0
+    loop = asyncio.get_event_loop()
+    while True:
+        try:
+            if _SOCKS:
+                r = public_pulse(await db.pulse_rounds.find_one({}, P, sort=[("number", -1)])) or {}
+                key = (r.get("id"), r.get("status"), r.get("anchor_at"))
+                t = loop.time()
+                changed = key != last_key
+                full = changed or t - last_full >= 1.0
+                if changed or full or (r.get("status") == "running" and t - last_tick >= 0.1):
+                    body = {"type": "state", "server_time": iso(), "round": r}
+                    if full:
+                        sh = await shared_pulse()
+                        body.update(recent=sh["recent"], winners=sh["winners"], config=sh["config"])
+                        last_full = t
+                    await _broadcast(json.dumps(body))
+                    last_key, last_tick = key, t
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("pulse watch error")
+            await asyncio.sleep(1)
+        await asyncio.sleep(0.04)
+
+
+@router.websocket("/pulse/ws")
+async def pulse_ws(ws: WebSocket):
+    await ws.accept()
+    sh = await shared_pulse()
+    await ws.send_text(json.dumps({"type": "state", "server_time": iso(), "round": sh["round"], "recent": sh["recent"],
+                                   "winners": sh["winners"], "config": sh["config"]}))
+    _SOCKS.add(ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _SOCKS.discard(ws)

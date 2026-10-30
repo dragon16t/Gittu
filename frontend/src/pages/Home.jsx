@@ -5,16 +5,18 @@ import { api, inr } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { ART, avatarFor } from "@/lib/assets";
 import { AppHeader } from "@/components/lobby/AppHeader";
+import { useT, LangSwitch } from "@/lib/i18n";
 import { BottomNav } from "@/components/lobby/BottomNav";
 
 const LiveWins = ({ wins }) => {
+  const t = useT();
   if (!wins) return <div className="h-12 rounded-2xl bg-white/5 animate-pulse" data-testid="live-wins" />;
   const items = wins.length ? [...wins, ...wins] : [];
   return (
     <div className="flex items-center gap-2.5 h-12 rounded-2xl border border-[#00F58A]/30 bg-[#0b1110] pl-3 pr-1 overflow-hidden" data-testid="live-wins">
-      <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-extrabold tracking-wider"><span className="h-2 w-2 rounded-full bg-[#00F58A] animate-pulse" />LIVE WINS</div>
+      <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-extrabold tracking-wider"><span className="h-2 w-2 rounded-full bg-[#00F58A] animate-pulse" />{t("LIVE WINS")}</div>
       <div className="h-6 w-px bg-white/10 shrink-0" />
-      {items.length === 0 ? <div className="text-[11px] text-neutral-500">No wins yet — be the first</div> : (
+      {items.length === 0 ? <div className="text-[11px] text-neutral-500">{t("No wins yet — be the first")}</div> : (
         <div className="ticker flex-1 overflow-hidden"><div className="ticker-track text-[11.5px] whitespace-nowrap" data-testid="live-wins-list">
           {items.map((w, i) => (
             <span key={i} className="inline-flex items-center gap-1.5 text-neutral-200">
@@ -29,7 +31,9 @@ const LiveWins = ({ wins }) => {
   );
 };
 
-const GameCard = ({ to, art, accent, glow, title, tagline, testid }) => (
+const GameCard = ({ to, art, accent, glow, title, tagline, testid }) => {
+  const t = useT();
+  return (
   <Link to={to} data-testid={testid} className="card-glow relative flex flex-col rounded-[20px] overflow-hidden border-2 bg-[#101313] active:scale-[0.99] transition-transform"
     style={{ borderColor: accent, "--glow": glow }}>
     <div className="relative h-[clamp(150px,calc(100dvh-555px),320px)] overflow-hidden">
@@ -38,16 +42,18 @@ const GameCard = ({ to, art, accent, glow, title, tagline, testid }) => (
     </div>
     <div className="relative -mt-1 pb-2.5 flex flex-col flex-1 gap-2 text-center">
       {title}
-      <div className="text-[9px] tracking-[0.18em] font-semibold whitespace-nowrap" style={{ color: accent }}>{tagline}</div>
+      <div className="text-[9px] tracking-[0.18em] font-semibold whitespace-nowrap" style={{ color: accent }}>{t(tagline)}</div>
       <div className="mt-auto mx-3 h-9 rounded-full flex items-center justify-center gap-1.5 text-black font-extrabold text-[12.5px] tracking-wide whitespace-nowrap"
         style={{ background: `linear-gradient(180deg, #fff6, transparent 60%), ${accent}`, boxShadow: `0 0 12px ${glow}` }} data-testid={`${testid}-play`}>
-        <Gamepad2 size={15} /> PLAY NOW <ChevronRight size={14} />
+        <Gamepad2 size={15} /> {t("PLAY NOW")} <ChevronRight size={14} />
       </div>
     </div>
   </Link>
 );
+};
 
 export default function Home() {
+  const t = useT();
   const { user } = useSession();
   const [lobby, setLobby] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -65,13 +71,14 @@ export default function Home() {
       <AppHeader balance={balance} />
       <div className="px-4 pb-1"><LiveWins wins={lobby ? lobby.wins : failed ? [] : null} /></div>
       <section className="relative h-[clamp(130px,19dvh,220px)] overflow-hidden" data-testid="home-hero">
+        <LangSwitch className="absolute right-3 top-2 z-10" />
         <img src={ART.hero} alt="" className="absolute right-[-18%] top-0 h-full w-[100%] object-cover object-right [mask-image:linear-gradient(to_right,transparent,black_35%)]" />
         <div className="relative px-5 pt-3">
           <h1 className="italic font-black leading-[0.95] text-[clamp(24px,7vw,38px)] tracking-tight">
-            <span className="block silver-text">PLAY</span><span className="block silver-text">WATCH</span>
-            <span className="block text-[#00F58A] drop-shadow-[0_0_18px_rgba(0,245,138,0.5)]">WIN BIG</span>
+            <span className="block silver-text">{t("PLAY")}</span><span className="block silver-text">{t("WATCH")}</span>
+            <span className="block text-[#00F58A] drop-shadow-[0_0_18px_rgba(0,245,138,0.5)]">{t("WIN BIG")}</span>
           </h1>
-          <p className="mt-2 text-[9.5px] font-semibold tracking-[0.14em] text-neutral-300 whitespace-nowrap">REAL GAMES. REAL PLAYERS. REAL WINS.</p>
+          <p className="mt-2 text-[9.5px] font-semibold tracking-[0.14em] text-neutral-300 whitespace-nowrap">{t("REAL GAMES. REAL PLAYERS. REAL WINS.")}</p>
         </div>
       </section>
       <div className="px-4 space-y-3">

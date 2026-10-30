@@ -355,6 +355,11 @@ async def create_withdrawal(body: WithdrawIn, request: Request, user=Depends(cur
     if not re.fullmatch(r"[\w.\-]{2,256}@[a-zA-Z]{2,64}", upi):
         raise HTTPException(400, "Enter a valid UPI ID")
     wal = await db.wallets.find_one({"user_id": user["id"]}, P)
+    if not await db.withdrawals.find_one({"user_id": user["id"], "status": {"$nin": ["rejected", "cancelled", "failed"]}}, {"_id": 1}):
+        dep = await db.deposits.aggregate([{"$match": {"user_id": user["id"], "status": "verified"}},
+                                           {"$group": {"_id": None, "s": {"$sum": "$amount"}}}]).to_list(1)
+        if (dep[0]["s"] if dep else 0) < 50000:
+            raise HTTPException(400, "Make a first deposit of at least ₹500 to unlock your first withdrawal")
     if wal.get("wager_remaining", 0) > 0:
         raise HTTPException(400, f"Complete your wagering requirement first: ₹{wal['wager_remaining'] / 100:.2f} more in bets")
     b = await db.bank_details.find_one({"user_id": user["id"]})

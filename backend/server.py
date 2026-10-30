@@ -83,6 +83,7 @@ async def create_indexes():
     await db.pulse_bets.create_index([("status", 1), ("collected_at", -1)])
     await db.pulse_ledger.create_index("key", unique=True)
     await db.pulse_cycles.create_index("cycle", unique=True)
+    await db.partner_rounds.create_index("key", unique=True)
     await db.sessions.create_index("id", unique=True)
     await db.sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.rate_events.create_index("at", expireAfterSeconds=86400)
@@ -167,6 +168,7 @@ async def startup():
     app.state.dispatch = asyncio.create_task(payments.withdrawal_dispatcher())
     app.state.audit = asyncio.create_task(audit_loop())
     app.state.pulse = asyncio.create_task(pulse.pulse_loop())
+    app.state.pulse_watch = asyncio.create_task(pulse.pulse_watch())
 
 
 @app.on_event("shutdown")

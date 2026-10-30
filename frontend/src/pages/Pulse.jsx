@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, errMsg, newKey, inr } from "@/lib/api";
+import { api, API, errMsg, newKey, inr } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { useMusic } from "@/components/game/hooks";
 import { playBetSound, playWinSound } from "@/lib/sfx";
 import { AppHeader } from "@/components/lobby/AppHeader";
 import { MoneyFlyers, makeFlyer } from "@/components/pulse/MoneyFlyers";
+import { useT, LangSwitch } from "@/lib/i18n";
 import { PulseTicker, Arena, TimerBar, BetCard, RecentRounds } from "@/components/pulse/PulseParts";
 
 const NONE = [];
 
-const LAG_MS = 220;
+const LAG_MS = 150;
 const EASE_MS = 160;
 
 const multAt = (r, t, max) => {
@@ -25,6 +26,7 @@ const payoutAt = (stake, m) => Math.floor((stake * Math.round(m * 100)) / 100);
 
 export default function Pulse() {
   const { user } = useSession();
+  const tr = useT();
   const nav = useNavigate();
   const [state, setState] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -68,23 +70,45 @@ export default function Pulse() {
         });
       }
       const merged = merge(data);
+      const RANK = { betting: 0, starting: 1, running: 2, crashed: 3 };
+      const pr = prev?.round, dr = merged.round;
+      if (pr && dr && (pr.number > dr.number || (pr.id === dr.id && RANK[pr.status] > RANK[dr.status]))) merged.round = pr;
       ref.current = merged;
       setState(merged);
     } catch { /* retry on next poll */ }
   }, [fly, merge]);
 
+  const live = useRef(false);
+  const onPush = useCallback((d) => {
+    offset.current = new Date(d.server_time).getTime() - Date.now();
+    if (d.round?.status === "running") lastRun.current = { id: d.round.id, at: new Date(d.server_time).getTime() };
+    const prev = ref.current;
+    if (!prev) return;
+    const next = { ...prev, round: d.round, ...(d.recent ? { recent: d.recent, winners: d.winners, config: { ...prev.config, ...d.config } } : {}) };
+    ref.current = next;
+    setState(next);
+    if (prev.round?.id !== d.round?.id || (prev.round?.status !== d.round?.status && d.round?.status === "crashed")) load();
+  }, [load]);
+
   useEffect(() => {
-    let alive = true, timer;
+    let alive = true, timer, ws, retry = 0;
+    const connect = () => {
+      ws = new WebSocket(`${API.replace(/^http/, "ws")}/pulse/ws`);
+      ws.onopen = () => { live.current = true; retry = 0; };
+      ws.onmessage = (e) => { try { onPush(JSON.parse(e.data)); } catch { /* ignore bad frame */ } };
+      ws.onclose = () => { live.current = false; if (alive) setTimeout(connect, Math.min(5000, 500 * 2 ** retry++)); };
+    };
+    connect();
     const loop = async () => {
-      await load();
-      if (alive) timer = setTimeout(loop, 100);
+      if (!live.current || !ref.current) await load();
+      if (alive) timer = setTimeout(loop, live.current ? 1000 : 150);
     };
     loop();
     let raf;
     const frame = () => { setNow(Date.now()); raf = requestAnimationFrame(frame); };
     raf = requestAnimationFrame(frame);
-    return () => { alive = false; clearTimeout(timer); cancelAnimationFrame(raf); };
-  }, [load]);
+    return () => { alive = false; clearTimeout(timer); cancelAnimationFrame(raf); if (ws) { ws.onclose = null; ws.close(); } };
+  }, [load, onPush]);
 
   const max = state?.config.max_multiplier || 3000;
   const nowSrv = now + offset.current;
@@ -143,7 +167,7 @@ export default function Pulse() {
       setState((ref.current = base));
       if (placeable) {
         const msg = errMsg(e).toLowerCase();
-        showFlash(slot, msg.includes("balance") ? "LOW BALANCE" : msg.includes("between") ? "CHECK AMOUNT" : "BETTING CLOSED");
+        showFlash(slot, tr(msg.includes("balance") ? "LOW BALANCE" : msg.includes("between") ? "CHECK AMOUNT" : "BETTING CLOSED"));
       }
       load();
     } finally {
@@ -163,7 +187,8 @@ export default function Pulse() {
         </div>
         <div className="flex items-center gap-1.5">
           <span className="h-8 px-2.5 rounded-full border border-white/10 bg-[#0b0e0e] text-[12px] whitespace-nowrap flex items-center gap-1.5" data-testid="pulse-round-number">
-            <span className="h-2 w-2 rounded-full bg-[#00F58A]" />Round #{r?.number ?? "—"}</span>
+            <span className="h-2 w-2 rounded-full bg-[#00F58A]" />{tr("Round")} #{r?.number ?? "—"}</span>
+          <LangSwitch />
         </div>
       </div>
       <main className="flex-1 px-4 flex flex-col justify-evenly gap-2 pt-1">

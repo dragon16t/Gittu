@@ -10,7 +10,6 @@ const SECTIONS = [
   ["5. No refunds", "All deposits, stakes and settled bets are final. No refunds are provided for losses, voluntary play, mistakes in selecting a side or stake, or bonus funds. Only failed or duplicate payments that are confirmed by our verification process may be corrected."],
   ["6. Limitation of liability", "Your money is your responsibility. BLACKBA, its operators, payment verifiers and staff are not responsible or liable for any loss of money, winnings, data or opportunity arising from your use of the platform, network or device failures, delays in deposits or withdrawals, or third-party payment services."],
   ["7. Payouts", "A winning bet returns 1.95× the stake (stake plus net winnings). Completed results are final."],
-  ["8. Game rounds and modes", "Rounds normally use a standard draw. The platform may run special rounds, clearly marked on screen with a banner, including \"Minority Wins\" rounds in which the side holding the smaller total stake wins that round. Always read the on-screen banner before betting."],
   ["8. Bonuses and wagering", "Deposits carry a 1× wagering requirement. Referral bonuses carry 5×: when a referred friend's very first verified deposit is ₹500 or more, the referrer receives a referral bonus (currently ₹300) and the friend receives a welcome bonus (currently ₹150). Later deposits do not qualify, and amounts may be changed by the platform. The ₹10 daily bonus carries 3×. Withdrawals are available only after wagering is completed. Minimum withdrawal is ₹300. Bonuses may be changed or withdrawn at any time and abuse will result in forfeiture."],
   ["9. Deposits and withdrawals", "Pay only to the UPI ID / QR shown for your deposit request. A UTR alone is not proof of payment; credits happen only after verification. Withdrawals are sent to your saved UPI ID. Provide accurate details; we are not responsible for transfers to details you entered incorrectly."],
   ["10. Account security and conduct", "Keep your password and recovery code private. Accounts involved in fraud, multiple accounts, chargebacks or abuse may be suspended and balances withheld pending investigation."],
@@ -39,7 +38,7 @@ export const TermsCheckbox = ({ checked, onChange, testid }) => {
           className="mt-0.5 h-4 w-4 accent-white shrink-0" />
         <span>
           I accept the{" "}
-          <button type="button" onClick={() => setOpen(true)} className="underline text-white" data-testid={`${testid}-open`}>Terms & Conditions</button>
+          <button type="button" onClick={(e) => { e.preventDefault(); onChange(true); setOpen(true); }} className="underline text-white" data-testid={`${testid}-open`}>Terms & Conditions</button>
         </span>
       </label>
       <Dialog open={open} onOpenChange={setOpen}>

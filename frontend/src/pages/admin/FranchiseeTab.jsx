@@ -6,6 +6,36 @@ import { DataTable, Section, Input, Select, Btn, Modal } from "./ui";
 const EMPTY = { name: "", username: "", email: "", phone: "", business_details: "", internal_ref: "", plan_id: "", payout_method: "UPI", payout_account: "" };
 const WD_ACTIONS = { requested: ["review", "approve", "reject"], under_review: ["approve", "reject"], approved: ["processing", "reject"], processing: ["complete", "fail"] };
 
+const Earning = ({ pid, stats, done }) => {
+  const [f, setF] = useState({ earn_mode: stats.earn_mode, profit_pct: stats.profit_pct, referral_amount: stats.referral_amount / 100 });
+  const save = async () => {
+    try { await api.post(`/admin/partners/${pid}/earning`, { earn_mode: f.earn_mode, profit_pct: +f.profit_pct, referral_amount: toPaise(f.referral_amount) }); toast.success("Earning mode saved"); done(); }
+    catch (e) { toast.error(errMsg(e)); }
+  };
+  return (
+    <div className="rounded-2xl border border-white/10 p-3 space-y-3" data-testid="partner-earning">
+      <div className="font-semibold text-white text-sm">Earning mode (one at a time)</div>
+      <div className="grid sm:grid-cols-2 gap-2">
+        {[["profit", "Profit share", "% of platform net win from this partner's users, credited after every settled round. Losses carry forward."],
+          ["referral", "Referral amount", "Fixed ₹ credited once when a referred user's first deposit is approved."]].map(([k, t, d]) => (
+          <button key={k} type="button" onClick={() => setF({ ...f, earn_mode: k })} data-testid={`partner-mode-${k}`}
+            className={`text-left rounded-xl border p-3 ${f.earn_mode === k ? "border-emerald-400/70 bg-emerald-500/10" : "border-white/10"}`}>
+            <div className="text-sm font-semibold">{t} {f.earn_mode === k && <span className="text-[10px] text-emerald-300">ON</span>}</div>
+            <div className="text-[11px] text-neutral-400 mt-1">{d}</div>
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2 items-end">
+        {f.earn_mode === "profit"
+          ? <Input label="Profit share (%)" type="number" value={f.profit_pct} onChange={(e) => setF({ ...f, profit_pct: e.target.value })} testid="partner-profit-pct" />
+          : <Input label="Referral amount (₹)" type="number" value={f.referral_amount} onChange={(e) => setF({ ...f, referral_amount: e.target.value })} testid="partner-referral-amount" />}
+        <Btn primary onClick={save} data-testid="partner-earning-save">Save earning mode</Btn>
+      </div>
+      {stats.earn_mode === "profit" && <div className="text-[11px] text-neutral-400" data-testid="partner-carry">Loss carried forward: {inr(Math.min(0, stats.profit_carry))}</div>}
+    </div>
+  );
+};
+
 const Detail = ({ pid, onClose }) => {
   const [d, setD] = useState(null);
   const [note, setNote] = useState("");
@@ -25,6 +55,7 @@ const Detail = ({ pid, onClose }) => {
             ["Registered users", d.stats.registered_users], ["Verified users", d.stats.verified_users], ["Available", inr(d.stats.available)], ["Reserved", inr(d.stats.reserved)], ["Total earned", inr(d.stats.total_earnings)], ["Paid out", inr(d.stats.withdrawn)]]
             .map(([k, v]) => <div key={k}><span className="text-neutral-500">{k}: </span>{v}</div>)}
         </div>
+        <Earning key={`${d.stats.earn_mode}-${d.stats.profit_pct}-${d.stats.referral_amount}`} pid={pid} stats={d.stats} done={load} />
         <div className="flex flex-wrap gap-2">
           {p.status === "active" && <Btn onClick={() => status("suspended")} data-testid="partner-suspend-button">Suspend</Btn>}
           {p.status === "suspended" && <Btn onClick={() => status("active")} data-testid="partner-reactivate-button">Reactivate</Btn>}
@@ -131,7 +162,7 @@ export default function FranchiseeTab() {
             {!r.compliance_ref && <Btn onClick={() => { const ref = window.prompt("Legal/compliance approval reference:"); if (ref) act(() => api.post(`/admin/partner-plans/${r.id}/compliance`, { approval_ref: ref }), "Approval recorded"); }} data-testid={`plan-approve-${r.id}`}>Record approval</Btn>}
             {r.status !== "active" && <Btn onClick={() => act(() => api.post(`/admin/partner-plans/${r.id}/activate`), "Plan activated")} data-testid={`plan-activate-${r.id}`}>Activate</Btn>}
           </div> }]} />
-        <p className="text-[11px] text-neutral-500">The automatic commission engine is OFF. No commission is ever calculated on wagers, losses or deposits. Earnings are posted only as audited admin ledger entries.</p>
+        <p className="text-[11px] text-neutral-500">Automatic earnings follow each partner's Earning mode (open a partner): Profit share (default 5% of platform net, per settled round, losses carried forward) or Referral amount (fixed ₹ on a referred user's first approved deposit). Every credit is an audited ledger entry.</p>
       </Section>
       <Detail pid={open} onClose={() => { setOpen(null); load(); }} />
     </>

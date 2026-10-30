@@ -100,6 +100,10 @@ async def settle_round(round_id: str):
     await db.rounds.update_one({"id": round_id, "status": {"$in": ["revealing", "closed"]}}, {"$set": {
         "status": "settled", "settled_at": iso(), "total_stakes": total_stake, "total_payout": total_payout,
         "ggr": total_stake - total_payout}})
+    from partner_earn import round_commission
+    rows = [(b["user_id"], b["amount"], b.get("payout", 0)) async for b in db.bets.find(
+        {"round_id": round_id, "status": {"$in": ["won", "lost"]}}, {"_id": 0, "user_id": 1, "amount": 1, "payout": 1})]
+    asyncio.create_task(round_commission("oddeven", round_id, rnd["number"], rows))
 
 
 def draw_result(mode: str = "random", totals: dict = None):

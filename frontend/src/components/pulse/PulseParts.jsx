@@ -2,11 +2,13 @@ import { memo } from "react";
 import { Minus, Plus, Trophy, ChevronRight, WalletCards } from "lucide-react";
 import { Link } from "react-router-dom";
 import { inr } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { ART } from "@/lib/assets";
 
 const C = 2 * Math.PI * 190;
 
 export const PulseTicker = memo(function PulseTicker({ winners }) {
+  const t = useT();
   if (!winners.length) return <div className="h-[28px] shrink-0 border-y border-white/5" />;
   const items = [...winners, ...winners];
   return (
@@ -14,7 +16,7 @@ export const PulseTicker = memo(function PulseTicker({ winners }) {
       <div className="ticker-track px-2">
         {items.map((w, i) => (
           <span key={i} className="text-neutral-200"><Trophy size={14} className="inline -mt-0.5 mr-1.5 text-[#FFC52E]" />
-            {w.name} won <b className="text-[#00F58A]">{inr(w.payout)}</b> at <span className="text-[#00F58A]">{w.multiplier.toFixed(2)}x</span></span>
+            {w.name} {t("won")} <b className="text-[#00F58A]">{inr(w.payout)}</b> {t("at")} <span className="text-[#00F58A]">{w.multiplier.toFixed(2)}x</span></span>
         ))}
       </div>
     </div>
@@ -26,6 +28,7 @@ const HALF = MAX_ARC / 2;
 export const arcFrac = (m) => (m <= 1 ? 0 : m <= HALF ? 0.5 * Math.log(m) / Math.log(HALF) : Math.min(1, 0.5 + 0.5 * (m - HALF) / HALF));
 
 export const Arena = ({ m, status }) => {
+  const t = useT();
   const crashed = status === "crashed";
   const frac = status === "running" || crashed ? arcFrac(m) : 0;
   const a = frac * 2 * Math.PI;
@@ -55,18 +58,19 @@ export const Arena = ({ m, status }) => {
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
         <div className="font-black tracking-tight leading-none text-white whitespace-nowrap drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]"
           style={{ fontSize: `${Math.min(20, 66 / (0.6 * txt.length))}cqw` }} data-testid="pulse-multiplier">{txt}</div>
-        {crashed && <div className="mt-[2cqw] rounded-full bg-black/70 px-3 py-1 text-[4.2cqw] font-extrabold tracking-[0.2em] text-[#ff3b4e]" data-testid="pulse-round-ends">ROUND ENDS</div>}
+        {crashed && <div className="mt-[2cqw] rounded-full bg-black/70 px-3 py-1 text-[4.2cqw] font-extrabold tracking-[0.2em] text-[#ff3b4e]" data-testid="pulse-round-ends">{t("ROUND ENDS")}</div>}
       </div>
     </div>
   );
 };
 
 export const TimerBar = ({ status, secs, total, totalWin }) => {
+  const t = useT();
   const betting = status === "betting";
   const frac = betting ? Math.max(0, Math.min(1, secs / total)) : 0;
   return (
     <div className="relative mx-auto -mt-3 w-[82%] max-w-[330px] rounded-[20px] border border-white/10 bg-[#0b0e0e] px-4 py-2 text-center" data-testid="pulse-timer">
-      <div className="text-[13px] text-neutral-300 leading-none" data-testid="pulse-timer-title">{betting ? "Place your bets" : "Total Win"}</div>
+      <div className="text-[13px] text-neutral-300 leading-none" data-testid="pulse-timer-title">{betting ? t("Place your bets") : t("Total Win")}</div>
       {betting ? (
         <div className="mt-1.5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <div className="h-1.5 rounded-full bg-white/10 overflow-hidden flex justify-end"><div className="h-full bg-[#00F58A]" style={{ width: `${frac * 100}%` }} /></div>
@@ -83,15 +87,16 @@ export const TimerBar = ({ status, secs, total, totalWin }) => {
 const CHIPS = [1000, 5000, 10000, 50000];
 
 export const BetCard = ({ slot, amount, setAmount, bet, status, m, busy, flash, onAction }) => {
+  const t = useT();
   const live = bet && bet.status === "active";
   const locked = !!bet || status !== "betting";
   let label, tone = "silver", disabled = busy;
-  if (bet?.status === "collected") { label = `COLLECTED ${inr(bet.payout)}`; tone = "done"; disabled = true; }
-  else if (bet?.status === "lost") { label = "ROUND LOST"; tone = "lost"; disabled = true; }
-  else if (live && status === "running") { label = `COLLECT ${inr(Math.floor(bet.stake * Math.round(m * 100) / 100))}`; tone = "green"; }
-  else if (live) { label = `BET PLACED ${inr(bet.stake)}`; tone = "placed"; disabled = true; }
-  else if (status === "betting") label = "PLACE BET";
-  else { label = "NEXT ROUND"; tone = "wait"; disabled = true; }
+  if (bet?.status === "collected") { label = `${t("COLLECTED")} ${inr(bet.payout)}`; tone = "done"; disabled = true; }
+  else if (bet?.status === "lost") { label = t("ROUND LOST"); tone = "lost"; disabled = true; }
+  else if (live && status === "running") { label = `${t("COLLECT")} ${inr(Math.floor(bet.stake * Math.round(m * 100) / 100))}`; tone = "green"; }
+  else if (live) { label = `${t("BET PLACED")} ${inr(bet.stake)}`; tone = "placed"; disabled = true; }
+  else if (status === "betting") label = t("PLACE BET");
+  else { label = t("NEXT ROUND"); tone = "wait"; disabled = true; }
   const toneCls = {
     silver: "silver-btn text-black shadow-[0_0_14px_rgba(0,245,138,0.35)] border border-[#00F58A]/60",
     green: "bg-gradient-to-b from-[#5dffb7] to-[#00c46e] text-black shadow-[0_0_22px_rgba(0,245,138,0.6)]",
@@ -105,7 +110,7 @@ export const BetCard = ({ slot, amount, setAmount, bet, status, m, busy, flash, 
     <div className="rounded-[20px] border border-white/10 bg-[#0b0e0e] p-2.5 space-y-1.5" data-testid={`bet-card-${slot}`}>
       <div className="flex items-center gap-2.5">
         <span className="h-8 w-8 rounded-full border-2 border-[#00F58A] text-[#00F58A] font-extrabold flex items-center justify-center">{slot}</span>
-        <span className="text-[16px] text-neutral-200">Bet {slot}</span>
+        <span className="text-[16px] text-neutral-200">{t("Bet")} {slot}</span>
       </div>
       <div className="flex items-center gap-1.5 rounded-2xl bg-black/60 border border-white/5 pl-3 pr-1.5 h-11">
         <span className="text-[19px] font-extrabold">₹</span>
@@ -130,11 +135,12 @@ export const BetCard = ({ slot, amount, setAmount, bet, status, m, busy, flash, 
 };
 
 export const RecentRounds = memo(function RecentRounds({ rounds }) {
+  const t = useT();
   return (
     <div className="rounded-[20px] border border-white/10 bg-[#0b0e0e] px-3.5 py-2" data-testid="pulse-recent">
       <div className="flex items-center justify-between">
-        <span className="text-[15px] font-bold">Recent Rounds</span>
-        <Link to="/history?tab=pulse" className="text-[13px] text-neutral-400 flex items-center gap-1" data-testid="pulse-view-all">View All <ChevronRight size={15} /></Link>
+        <span className="text-[15px] font-bold">{t("Recent Rounds")}</span>
+        <Link to="/history?tab=pulse" className="text-[13px] text-neutral-400 flex items-center gap-1" data-testid="pulse-view-all">{t("View All")} <ChevronRight size={15} /></Link>
       </div>
       <div className="mt-1.5 grid grid-cols-10 gap-1">
         {rounds.slice(0, 10).map((r) => {

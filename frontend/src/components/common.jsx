@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { LangSwitch } from "@/lib/i18n";
 import { BrandName } from "@/lib/brand";
 import { ChevronLeft } from "lucide-react";
 
@@ -74,6 +75,7 @@ export const Empty = ({ children = "Nothing here yet" }) => (
 
 export const AuthCard = ({ title, subtitle, children, footer, testid }) => (
   <div className="relative z-10 min-h-screen flex items-center justify-center px-5 py-10" data-testid={testid}>
+    <LangSwitch className="absolute right-4 top-4 z-20" />
     <div className="w-full max-w-[380px] rise">
       <div className="text-center mb-6">
         <div className="text-[30px] leading-none font-black silver-text tracking-[0.14em]" data-testid="brand-name"><BrandName /></div>

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { api, errMsg } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { AuthCard, Field, SilverButton, TextLink } from "@/components/common";
+import { useT } from "@/lib/i18n";
 import { TermsCheckbox } from "@/components/Terms";
 
 export const RecoveryCodeBox = ({ code, onDone }) => (
@@ -17,6 +18,7 @@ export const RecoveryCodeBox = ({ code, onDone }) => (
 );
 
 export default function Register() {
+  const t = useT();
   const [params] = useSearchParams();
   const [f, setF] = useState({ username: "", password: "", confirm_password: "", referral_code: params.get("ref") || "", partner_code: (() => { const p = params.get("p"); if (p && !localStorage.getItem("oe_partner")) localStorage.setItem("oe_partner", p.toUpperCase()); return localStorage.getItem("oe_partner") || ""; })(), accept_terms: false, mobile: "", dob: "", email: "", email_otp: "" });
   const [otpWait, setOtpWait] = useState(0);
@@ -24,7 +26,7 @@ export default function Register() {
   useEffect(() => { if (otpWait <= 0) return; const t = setTimeout(() => setOtpWait(otpWait - 1), 1000); return () => clearTimeout(t); }, [otpWait]);
   const sendOtp = async () => {
     setSending(true);
-    try { await api.post("/auth/email-otp", { email: f.email }); toast.success("Code sent. Check your inbox (and spam)."); setOtpWait(60); }
+    try { await api.post("/auth/email-otp", { email: f.email }); toast.success(t("Code sent. Check your inbox (and spam).")); setOtpWait(60); }
     catch (err) { toast.error(errMsg(err)); } finally { setSending(false); }
   };
   const [busy, setBusy] = useState(false);
@@ -56,7 +58,7 @@ export default function Register() {
       testid="register-page"
       title={code ? "Account created" : "Sign up"}
       subtitle="Create your account in seconds"
-      footer={!code && <>Have an account? <TextLink to="/login" testid="login-link">Login</TextLink></>}
+      footer={!code && <>{t("Have an account?")} <TextLink to="/login" testid="login-link">{t("Login")}</TextLink></>}
     >
       {code ? (
         <RecoveryCodeBox code={code} onDone={() => nav("/")} />
@@ -70,23 +72,23 @@ export default function Register() {
               <div className="mt-1 text-[12px] text-neutral-300">Create your account to start playing ODD/EVEN and win up to 1.95×.</div>
             </div>
           )}
-          <Field label="Username" testid="register-username-input" value={f.username} onChange={set("username")} required />
-          <Field label="Mobile number" type="tel" inputMode="numeric" maxLength={10} prefix="+91" testid="register-mobile-input" value={f.mobile}
+          <Field label={t("Username")} testid="register-username-input" value={f.username} onChange={set("username")} required />
+          <Field label={t("Mobile number")} type="tel" inputMode="numeric" maxLength={10} prefix="+91" testid="register-mobile-input" value={f.mobile}
             onChange={(e) => setF({ ...f, mobile: e.target.value.replace(/\D/g, "") })} required />
           <div className="flex items-end gap-2">
-            <Field label="Email" type="email" testid="register-email-input" value={f.email} onChange={set("email")} required className="flex-1 min-w-0" />
+            <Field label={t("Email")} type="email" testid="register-email-input" value={f.email} onChange={set("email")} required className="flex-1 min-w-0" />
             <button type="button" onClick={sendOtp} disabled={sending || otpWait > 0 || !f.email} data-testid="register-send-otp-button"
-              className="silver-btn shrink-0 h-11 rounded-xl px-4 text-xs font-extrabold disabled:opacity-50">{sending ? "…" : otpWait > 0 ? `${otpWait}s` : "SEND OTP"}</button>
+              className="silver-btn shrink-0 h-11 rounded-xl px-4 text-xs font-extrabold disabled:opacity-50">{sending ? "…" : otpWait > 0 ? `${otpWait}s` : t("SEND OTP")}</button>
           </div>
-          <Field label="Email code (6 digits)" inputMode="numeric" maxLength={6} testid="register-email-otp-input" value={f.email_otp}
+          <Field label={t("Email code (6 digits)")} inputMode="numeric" maxLength={6} testid="register-email-otp-input" value={f.email_otp}
             onChange={(e) => setF({ ...f, email_otp: e.target.value.replace(/\D/g, "") })} required />
-          <Field label="Date of birth" type="date" testid="register-dob-input" value={f.dob} onChange={set("dob")} required className="[&_input]:[color-scheme:dark]" />
-          <Field label="Password" type="password" testid="register-password-input" value={f.password} onChange={set("password")} required />
-          <Field label="Confirm password" type="password" testid="register-confirm-input" value={f.confirm_password}
+          <Field label={t("Date of birth")} type="date" testid="register-dob-input" value={f.dob} onChange={set("dob")} required className="[&_input]:[color-scheme:dark]" />
+          <Field label={t("Password")} type="password" testid="register-password-input" value={f.password} onChange={set("password")} required />
+          <Field label={t("Confirm password")} type="password" testid="register-confirm-input" value={f.confirm_password}
             onChange={set("confirm_password")} required />
-          <Field label="Referral code (optional)" testid="register-referral-input" value={f.referral_code}
+          <Field label={t("Referral code (optional)")} testid="register-referral-input" value={f.referral_code}
             onChange={(e) => setF({ ...f, referral_code: e.target.value.toUpperCase() })} />
-          <p className="text-xs text-neutral-500">Min 8 characters with letters and numbers.</p>
+          <p className="text-xs text-neutral-500">{t("Min 8 characters with letters and numbers.")}</p>
           <TermsCheckbox checked={f.accept_terms} onChange={(v) => setF({ ...f, accept_terms: v })} testid="register-terms-checkbox" />
           <SilverButton type="submit" disabled={busy || !f.accept_terms} data-testid="register-submit-button">{busy ? "Creating…" : "SIGN UP"}</SilverButton>
         </form>

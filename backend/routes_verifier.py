@@ -102,6 +102,9 @@ async def do_verify_deposit(v: dict, d: dict, user: dict, request: Request, allo
         await db.payment_accounts.update_one({"id": d["account_id"]}, {"$inc": {"available_funds": d["amount"]}})
         await accrue_commission(v["id"], "deposits", d["id"], d["amount"])
         await on_deposit_verified(d)
+        from partner_earn import first_deposit_reward
+        if await db.deposits.count_documents({"user_id": d["user_id"], "status": "verified"}) == 1:
+            await first_deposit_reward(d["user_id"])
         await credit_deposit_notice(d)
     await audit(user, "deposit.verified", d["id"], {"amount": d["amount"], "utr": d.get("utr"), "note": note}, request)
 

@@ -85,7 +85,7 @@ const Logic1 = ({ cfg, dist, save }) => {
   const obs = dist.rounds ? Math.round((dist.below_2x / dist.rounds) * 100) : null;
   return (
     <Card title="Logic 1 · Random multiplier distribution" testid="arena-logic1"
-      sub="One logic is active at a time. Endpoint is chosen by server RNG before the round (sha256 seed commitment) and never changed by stakes or balances."
+      sub="Cumulative shares: % below 1.2× ≤ % below 1.5× ≤ % below 2×. Values inside each band are uniformly random from a fresh 256-bit cryptographic seed per round (sha256 commitment published first), so players and bots cannot predict results."
       onSave={() => save("logic", { logic, logics: lg })}>
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {Object.keys(LOGIC_INFO).map((name) => {
@@ -95,7 +95,11 @@ const Logic1 = ({ cfg, dist, save }) => {
               <button type="button" onClick={() => setLogic(name)} className="flex items-center gap-2 text-sm font-semibold" data-testid={`arena-logic-${name}-select`}>
                 <span className={`h-4 w-4 rounded-full border-2 ${on ? "border-emerald-400 bg-emerald-400" : "border-white/40"}`} />{LOGIC_INFO[name]}{on && <span className="text-[10px] text-emerald-300">ACTIVE</span>}
               </button>
-              <div className="text-xs text-neutral-400">{v.below_pct}% of rounds below 2×, {100 - v.below_pct}% between {v.lo}× and {v.hi}×</div>
+              <div className="text-xs text-neutral-400">{v.below_12_pct ?? 15}% below 1.2× · {v.below_15_pct ?? 40}% below 1.5× · {v.below_pct}% below 2× · {100 - v.below_pct}% between {v.lo}× and {v.hi}×</div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input label="% below 1.2×" type="number" value={v.below_12_pct ?? 15} onChange={set(name, "below_12_pct")} testid={`arena-logic-${name}-p12`} />
+                <Input label="% below 1.5×" type="number" value={v.below_15_pct ?? 40} onChange={set(name, "below_15_pct")} testid={`arena-logic-${name}-p15`} />
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 <Input label="% below 2×" type="number" value={v.below_pct} onChange={set(name, "below_pct")} testid={`arena-logic-${name}-pct`} />
                 <Input label="Rest from ×" type="number" value={v.lo} onChange={set(name, "lo")} testid={`arena-logic-${name}-lo`} />
