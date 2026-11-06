@@ -82,6 +82,8 @@ async def credit_pending_referral_coupons():
 
 async def on_deposit_verified(dep: dict):
     await add_wagering(dep["user_id"], dep["amount"] * DEPOSIT_WAGER)
+    from chain import milestones_for_user_pool
+    asyncio.create_task(milestones_for_user_pool(dep["user_id"]))
     u = await db.users.find_one({"id": dep["user_id"]}, P)
     if not u or not u.get("referred_by") or u.get("referral_checked") or u.get("referral_rewarded"):
         return

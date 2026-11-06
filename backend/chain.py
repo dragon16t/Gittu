@@ -11,7 +11,60 @@ from core import db, iso, uid, current_user, current_admin, audit, notify, log, 
 router = APIRouter()
 P = {"_id": 0}
 IST = timezone(timedelta(hours=5, minutes=30))
-DEFAULT = {"enabled": True, "pct": 10.0, "min_withdraw": 100000, "min_members": 2}
+DEFAULT = {"enabled": True, "pct": 10.0, "min_withdraw": 100000, "min_members": 2,
+           "milestones": [[10, 10000], [50, 50000], [100, 100000]]}
+
+
+def mask_name(n: str) -> str:
+    n = n or "user"
+    return n[:2] + "***" + n[-1] if len(n) > 3 else n[0] + "***"
+
+
+async def pool_tree(root_id: str):
+    """Children map + set of members who ever deposited, for one pool."""
+    users = await db.users.find({"chain_root": root_id, "role": "user"},
+                                {"_id": 0, "id": 1, "username": 1, "referred_by": 1, "created_at": 1}).to_list(200000)
+    ids = [u["id"] for u in users]
+    dep = set(await db.deposits.distinct("user_id", {"status": "verified", "user_id": {"$in": ids}}))
+    kids = {}
+    for u in users:
+        if u.get("referred_by"):
+            kids.setdefault(u["referred_by"], []).append(u)
+    return {u["id"]: u for u in users}, kids, dep
+
+
+def downline_stats(uid_: str, kids: dict, dep: set) -> dict:
+    total = deposited = depth = 0
+    stack = [(c, 1) for c in kids.get(uid_, [])]
+    while stack:
+        u, d = stack.pop()
+        total += 1
+        deposited += u["id"] in dep
+        depth = max(depth, d)
+        stack.extend((c, d + 1) for c in kids.get(u["id"], []))
+    return {"total": total, "deposited": deposited, "levels": depth}
+
+
+async def award_milestones(user_id: str, deposited: int, cfg: dict):
+    for need, amt in cfg["milestones"]:
+        if deposited >= need and await chain_credit(user_id, amt, "milestone", f"milestone:{need}:{user_id}", {"members": need}):
+            await notify(user_id, "Milestone unlocked!", f"{need} depositing members in your chain — ₹{amt / 100:,.0f} added to chain earnings.")
+
+
+async def milestones_for_user_pool(user_id: str):
+    try:
+        u = await db.users.find_one({"id": user_id}, {"_id": 0, "chain_root": 1})
+        if not u or not u.get("chain_root"):
+            return
+        cfg = await ccfg()
+        by_id, kids, dep = await pool_tree(u["chain_root"])
+        cur, seen = by_id.get(user_id, {}).get("referred_by"), set()
+        while cur and cur in by_id and cur not in seen:
+            seen.add(cur)
+            await award_milestones(cur, downline_stats(cur, kids, dep)["deposited"], cfg)
+            cur = by_id[cur].get("referred_by")
+    except Exception as e:
+        log.error(f"milestones: {e}")
 
 
 async def ccfg() -> dict:
@@ -69,7 +122,7 @@ async def chain_credit(user_id: str, amount: int, typ: str, key: str, meta: dict
     except DuplicateKeyError:
         return False
     inc = {"balance": amount}
-    if amount > 0 and typ == "pool_share":
+    if amount > 0 and typ in ("pool_share", "milestone"):
         inc["total_earned"] = amount
     await db.chain_wallets.update_one({"user_id": user_id}, {"$inc": inc, "$setOnInsert": {"created_at": iso()}}, upsert=True)
     return True
@@ -168,6 +221,67 @@ async def pool_view(user: dict, cfg: dict) -> dict:
 
 
 # ---------- user ----------
+def week_start_utc() -> str:
+    d = datetime.now(IST).date()
+    return ist_day_bounds((d - timedelta(days=d.weekday())).isoformat())[0]
+
+
+@router.get("/chain/tree")
+async def chain_tree(of: str = "", user=Depends(current_user)):
+    cfg = await ccfg()
+    me = await db.users.find_one({"id": user["id"]}, {"_id": 0, "chain_root": 1})
+    by_id, kids, dep = await pool_tree(me.get("chain_root") or user["id"])
+    node = of or user["id"]
+    cur, ok = node, node == user["id"]
+    while not ok and cur in by_id and by_id[cur].get("referred_by"):
+        cur = by_id[cur]["referred_by"]
+        ok = cur == user["id"]
+    if not ok:
+        raise HTTPException(404, "Not in your chain")
+    mine = downline_stats(user["id"], kids, dep)
+    await award_milestones(user["id"], mine["deposited"], cfg)
+    got = set(await db.chain_ledger.distinct("meta.members", {"user_id": user["id"], "type": "milestone"}))
+    children = sorted(kids.get(node, []), key=lambda c: c.get("created_at", ""), reverse=True)
+    return {"me": mine, "node": node, "node_name": by_id.get(node, {}).get("username") if node != user["id"] else None,
+            "children": [{"id": c["id"], "name": c["username"] if node == user["id"] else mask_name(c["username"]),
+                          "joined": c.get("created_at"), "deposited": c["id"] in dep, **{f"down_{k}": v for k, v in downline_stats(c["id"], kids, dep).items()}}
+                         for c in children[:200]],
+            "milestones": [{"members": n, "bonus": a, "reached": mine["deposited"] >= n, "paid": n in got} for n, a in cfg["milestones"]]}
+
+
+@router.get("/chain/leaderboard")
+async def chain_leaderboard(user=Depends(current_user)):
+    since = week_start_utc()
+    inv = await db.users.aggregate([
+        {"$match": {"role": "user", "referred_by": {"$ne": None}, "created_at": {"$gte": since}}},
+        {"$group": {"_id": "$referred_by", "joined": {"$sum": 1}, "ids": {"$push": "$id"}}},
+    ]).to_list(100000)
+    deps = set(await db.deposits.distinct("user_id", {"status": "verified", "user_id": {"$in": [i for r in inv for i in r["ids"]]}}))
+    rows = sorted([{"id": r["_id"], "joined": r["joined"], "deposited": sum(1 for i in r["ids"] if i in deps)} for r in inv],
+                  key=lambda r: (-r["deposited"], -r["joined"]))
+    names = {u["id"]: u["username"] for u in await db.users.find({"id": {"$in": [r["id"] for r in rows[:20]] + [user["id"]]}}, {"_id": 0, "id": 1, "username": 1}).to_list(30)}
+    my_rank = next((i + 1 for i, r in enumerate(rows) if r["id"] == user["id"]), None)
+    lo = since
+    pool_dep = await db.deposits.aggregate([
+        {"$match": {"status": "verified", "verified_at": {"$gte": lo}}},
+        {"$lookup": {"from": "users", "localField": "user_id", "foreignField": "id", "as": "u"}}, {"$unwind": "$u"},
+        {"$group": {"_id": "$u.chain_root", "deposits": {"$sum": "$amount"}}}, {"$sort": {"deposits": -1}}, {"$limit": 10},
+    ]).to_list(10)
+    paid = {p["_id"]: p["paid"] for p in await db.chain_payouts.aggregate([
+        {"$match": {"created_at": {"$gte": lo}}}, {"$group": {"_id": "$root_id", "paid": {"$sum": "$paid"}}}]).to_list(100000)}
+    roots = {u["id"]: u["username"] for u in await db.users.find({"id": {"$in": [p["_id"] for p in pool_dep]}}, {"_id": 0, "id": 1, "username": 1}).to_list(10)}
+    me = await db.users.find_one({"id": user["id"]}, {"_id": 0, "chain_root": 1})
+    pools = []
+    for p in pool_dep:
+        members = await db.users.count_documents({"chain_root": p["_id"], "role": "user"})
+        if members >= 2:
+            pools.append({"name": mask_name(roots.get(p["_id"])), "members": members, "week_deposits": p["deposits"],
+                          "week_paid": paid.get(p["_id"], 0), "mine": p["_id"] == me.get("chain_root")})
+    return {"week_start": since, "inviters": [{"rank": i + 1, "name": mask_name(names.get(r["id"])), "joined": r["joined"], "deposited": r["deposited"],
+                                               "me": r["id"] == user["id"]} for i, r in enumerate(rows[:20])],
+            "my_rank": my_rank, "pools": pools}
+
+
 @router.get("/chain")
 async def my_chain(user=Depends(current_user)):
     cfg = await ccfg()
@@ -270,12 +384,20 @@ class ChainCfgIn(BaseModel):
     pct: float
     min_withdraw: int
     min_members: int
+    milestones: list
 
 
 @router.put("/admin/chain/config")
 async def admin_chain_cfg(body: ChainCfgIn, request: Request, admin=Depends(current_admin)):
     if not (0 <= body.pct <= 50 and body.min_withdraw >= 10000 and body.min_members >= 2):
         raise HTTPException(400, "Share 0–50%, min withdrawal ≥ ₹100, pool needs ≥ 2 members")
+    try:
+        ms = sorted({int(m[0]): int(m[1]) for m in body.milestones}.items())
+    except (TypeError, ValueError, IndexError):
+        raise HTTPException(400, "Milestones need members and bonus")
+    if not 1 <= len(ms) <= 10 or any(n < 1 or a < 0 or a > 10000000 for n, a in ms):
+        raise HTTPException(400, "1–10 milestones, members ≥ 1, bonus ₹0–₹1,00,000")
+    body.milestones = [list(m) for m in ms]
     await db.config.update_one({"id": "chain"}, {"$set": body.model_dump()}, upsert=True)
     await audit(admin, "chain.config", "chain", body.model_dump(), request)
     return await ccfg()
